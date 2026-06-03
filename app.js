@@ -1,4 +1,4 @@
-// app.js - исправленная версия с правильными кластерами
+// app.js - с кликабельными кластерами
 
 let map;
 let markers = [];
@@ -19,13 +19,12 @@ function initMap() {
         });
         mapReady = true;
         
-        // Создаём кластеризатор с ИСПРАВЛЕННЫМ отображением
+        // Создаём кластеризатор с КЛИКАБЕЛЬНЫМИ кластерами
         clusterer = new ymaps.Clusterer({
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
-            clusterDisableClickZoom: false,
-            clusterOpenBalloonOnClick: true,
-            // ИСПРАВЛЕННЫЙ шаблон для отображения числа в кластере
+            clusterDisableClickZoom: true, // Отключаем автоматический зум при клике
+            clusterOpenBalloonOnClick: false, // Отключаем стандартный балун
             clusterIconLayout: 'default#imageWithContent',
             clusterIconContentLayout: ymaps.templateLayoutFactory.createClass(
                 '<div style="' +
@@ -45,18 +44,41 @@ function initMap() {
                 '">' +
                     '{{ properties.geoObjects.length }}' +
                 '</div>'
-            ),
-            clusterBalloonContentLayout: ymaps.templateLayoutFactory.createClass(
-                '<div style="max-width: 300px; padding: 10px;">' +
-                    '<strong>📦 Кластер из {{ properties.geoObjects.length }} точек</strong><br>' +
-                    '<hr>' +
-                    '{% for geoObject in properties.geoObjects %}' +
-                        '<div style="margin: 5px 0; border-bottom: 1px solid #eee; font-size: 12px;">' +
-                            '📍 {{ geoObject.properties.get("hintContent")|raw }}' +
-                        '</div>' +
-                    '{% endfor %}' +
-                '</div>'
             )
+        });
+        
+        // Добавляем обработчик клика по кластеру
+        clusterer.events.add('click', function(e) {
+            const cluster = e.get('target');
+            const geoObjects = cluster.properties.geoObjects;
+            
+            // Собираем индексы всех точек в кластере
+            const indexesToSelect = [];
+            for (let i = 0; i < geoObjects.length; i++) {
+                const marker = geoObjects[i];
+                const markerIndex = marker.properties.get('markerIndex');
+                if (markerIndex !== undefined && addressData[markerIndex] && addressData[markerIndex].geocodeSuccess) {
+                    indexesToSelect.push(markerIndex);
+                }
+            }
+            
+            // Выделяем все точки из кластера
+            for (let idx of indexesToSelect) {
+                if (!selectedMarkerIndexes.has(idx)) {
+                    selectedMarkerIndexes.add(idx);
+                    const markerObj = markers.find(m => m.index === idx);
+                    if (markerObj && markerObj.main) {
+                        markerObj.main.options.set('preset', 'islands#blueIcon');
+                    }
+                }
+            }
+            
+            updateAddressList();
+            updateSelectionStats();
+            updateAptSum();
+            
+            // Показываем уведомление
+            alert(`✅ Выбрано ${indexesToSelect.length} адресов из кластера`);
         });
         
         map.geoObjects.add(clusterer);

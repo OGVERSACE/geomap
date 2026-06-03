@@ -1,4 +1,4 @@
-// app.js - рабочая версия без кластеризации
+// app.js - стандартные маркеры с номером внутри
 
 let map;
 let markers = [];
@@ -139,48 +139,80 @@ function getMapLink() {
     navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
 }
 
-// Добавление маркера с номером на самом маркере
+// Добавление маркера - СТАНДАРТНЫЙ МАРКЕР ЯНДЕКСА с номером внутри
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const aptCount = markerData[index]?.apartments || 0;
     
+    // Определяем цвет маркера (стандартные цвета Яндекса)
     let markerColor;
-    if (isDuplicate) markerColor = '#f44336';
-    else if (hasPlot) markerColor = '#ff9800';
-    else markerColor = '#4CAF50';
+    if (isDuplicate) markerColor = 'red';
+    else if (hasPlot) markerColor = 'orange';
+    else markerColor = 'green';
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Кастомный маркер с номером внутри
-    const markerLayout = ymaps.templateLayoutFactory.createClass(
-        `<div style="
-            background: ${markerColor};
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            line-height: 28px;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            cursor: pointer;
-        ">${number}</div>`
-    );
+    // Создаём HTML для номера внутри маркера
+    const numberHtml = `<div style="
+        background: white;
+        color: #333;
+        font-weight: bold;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        line-height: 18px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid #999;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        position: absolute;
+        top: -5px;
+        right: -8px;
+    ">${number}</div>`;
     
+    // Стандартный маркер Яндекса
     const placemark = new ymaps.Placemark([lat, lon], {
         balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>${duplicateWarning}`,
         hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-        iconLayout: markerLayout,
-        iconShape: { type: 'Circle', coordinates: [14, 14], radius: 14 },
+        preset: `islands#${markerColor}Icon`,
         balloonMaxWidth: 350
     });
+    
+    // Добавляем номер на маркер (через кастомный контент)
+    // Для этого используем iconContentLayout
+    const contentLayout = ymaps.templateLayoutFactory.createClass(
+        `<div style="position: relative;">
+            <div style="
+                position: absolute;
+                top: -8px;
+                right: -10px;
+                background: white;
+                color: #333;
+                font-weight: bold;
+                font-size: 11px;
+                font-family: Arial, sans-serif;
+                text-align: center;
+                line-height: 18px;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                border: 1.5px solid ${markerColor === 'red' ? '#f44336' : (markerColor === 'orange' ? '#ff9800' : '#4CAF50')};
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                background: white;
+                z-index: 10;
+            ">${number}</div>
+        </div>`
+    );
+    
+    // Применяем layout только если номер не слишком большой
+    if (number < 100) {
+        placemark.options.set('iconContentLayout', contentLayout);
+    }
     
     placemark.events.add('click', () => toggleMarkerSelection(index));
     
@@ -213,32 +245,13 @@ function updateMarkerColor(index) {
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const isDuplicate = markerData[index]?.isDuplicate || false;
-    const number = markerData[index]?.id || index + 1;
     
     let markerColor;
-    if (isDuplicate) markerColor = '#f44336';
-    else if (hasPlot) markerColor = '#ff9800';
-    else markerColor = '#4CAF50';
+    if (isDuplicate) markerColor = 'red';
+    else if (hasPlot) markerColor = 'orange';
+    else markerColor = 'green';
     
-    const markerLayout = ymaps.templateLayoutFactory.createClass(
-        `<div style="
-            background: ${markerColor};
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            line-height: 28px;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            cursor: pointer;
-        ">${number}</div>`
-    );
-    
-    markers[index].options.set('iconLayout', markerLayout);
+    markers[index].options.set('preset', `islands#${markerColor}Icon`);
 }
 
 // Обновление суммы квартир
@@ -331,10 +344,13 @@ function updateStats() {
     const success = addressData.filter(a => a.geocodeSuccess).length;
     const assigned = markerData.filter(m => m && m.plot && m.plot !== '').length;
     const onMap = markers.length;
+    const duplicates = markerData.filter(m => m && m.isDuplicate).length;
     
     document.getElementById('totalCount').textContent = total;
     document.getElementById('mapCount').textContent = onMap;
     document.getElementById('assignedCount').textContent = assigned;
+    const dupElement = document.getElementById('duplicateCount');
+    if (dupElement) dupElement.textContent = duplicates;
 }
 
 // Обновление списка адресов

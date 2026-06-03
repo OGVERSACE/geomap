@@ -243,6 +243,19 @@
         .address-checkbox {
             margin-top: 2px;
         }
+		/* Стили для маркеров с номерами */
+		.custom-marker {
+		cursor: pointer;
+		transition: transform 0.1s;
+		}
+		.custom-marker:hover {
+		transform: scale(1.1);
+		}
+		/* Анимация для выбранного маркера */
+		.custom-marker.selected div:first-child {
+		box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.5);
+		transform: scale(1.15);
+		}
     </style>
 </head>
 <body>

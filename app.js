@@ -1,4 +1,4 @@
-// app.js - полная версия с нумерацией на маркерах
+// app.js - полная рабочая версия с нумерацией на маркерах
 
 let map;
 let markers = [];
@@ -177,7 +177,7 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение ссылки на текущее состояние
+// Получение ссылки
 function getMapLink() {
     if (!mapReady || !map) {
         alert('Карта ещё не загружена');
@@ -188,98 +188,90 @@ function getMapLink() {
     const url = window.location.href;
     
     navigator.clipboard.writeText(url).then(() => {
-        alert('✅ Ссылка скопирована!\n\n' + url + '\n\nПри открытии ссылки карта восстановится с точками и участками.');
+        alert('✅ Ссылка скопирована!');
     }).catch(() => {
         prompt('Скопируйте ссылку вручную:', url);
     });
 }
 
-// Добавление маркера с номером на самом маркере
+// Добавление маркера с номером (рабочая версия)
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     
-    // Определяем цвет маркера
     let markerColor;
     if (isDuplicate) {
-        markerColor = '#f44336'; // красный
+        markerColor = '#f44336';
     } else if (hasPlot) {
-        markerColor = '#ff9800'; // оранжевый
+        markerColor = '#ff9800';
     } else {
-        markerColor = '#4CAF50'; // зелёный
+        markerColor = '#4CAF50';
     }
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
-    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ВНИМАНИЕ: Дубликат адреса!</span>' : '';
+    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Создаём HTML для маркера
-    const markerHtml = `
-        <div class="custom-marker" style="position: relative; cursor: pointer;">
-            <div style="
-                background: ${markerColor};
-                color: white;
-                font-weight: bold;
-                font-size: 14px;
-                font-family: Arial, sans-serif;
-                text-align: center;
-                line-height: 30px;
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                transition: transform 0.1s;
-            ">
-                ${number}
-            </div>
-            ${hasPlot ? `
-            <div style="
-                position: absolute;
-                bottom: -20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0,0,0,0.7);
-                color: white;
-                font-size: 10px;
-                padding: 2px 5px;
-                border-radius: 4px;
-                white-space: nowrap;
-                font-family: Arial, sans-serif;
-                font-weight: bold;
-            ">
-                уч.${plotDisplay}
-            </div>
-            ` : ''}
-        </div>
+    // Создаём HTML-содержимое для маркера
+    const markerContent = document.createElement('div');
+    markerContent.className = 'custom-marker';
+    markerContent.style.cssText = 'position: relative; cursor: pointer;';
+    
+    const circleDiv = document.createElement('div');
+    circleDiv.style.cssText = `
+        background: ${markerColor};
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        line-height: 30px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        transition: transform 0.1s;
     `;
+    circleDiv.textContent = String(number);
+    markerContent.appendChild(circleDiv);
     
-    // Создаём кастомный макет
-    const MarkerLayout = ymaps.templateLayoutFactory.createClass(
-        '<div style="position: relative;">' + markerHtml + '</div>',
-        {
-            build: function() {
-                ymaps.templateLayoutFactory.prototype.build.call(this);
-                const markerDiv = this.getParentElement().querySelector('.custom-marker');
-                if (markerDiv) {
-                    markerDiv.onclick = (e) => {
-                        e.stopPropagation();
-                        const coords = this.getData().geometry.getCoordinates();
-                        this.getData().properties.balloon.open();
-                    };
-                }
-            }
-        }
-    );
+    if (hasPlot && plotDisplay) {
+        const plotDiv = document.createElement('div');
+        plotDiv.style.cssText = `
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        `;
+        plotDiv.textContent = `уч.${plotDisplay}`;
+        markerContent.appendChild(plotDiv);
+    }
     
     const placemark = new ymaps.Placemark([lat, lon], {
         balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong>${duplicateWarning}`,
-        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + markerData[index].plot + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-        iconLayout: MarkerLayout,
-        iconShape: { type: 'Circle', coordinates: [15, 15], radius: 15 },
+        iconLayout: 'default#imageWithContent',
+        iconImageHref: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="30" height="30"%3E%3C/svg%3E',
+        iconImageSize: [30, 30],
+        iconImageOffset: [-15, -15],
+        iconContentLayout: ymaps.templateLayoutFactory.createClass('<div style="position: relative;">' + markerContent.outerHTML + '</div>'),
         balloonMaxWidth: 350
     });
+    
+    // Сохраняем ссылку на DOM-элемент для обновления
+    placemark._customContent = markerContent;
+    placemark._circleDiv = circleDiv;
+    placemark._plotDiv = hasPlot ? plotDiv : null;
     
     placemark.events.add('click', () => {
         toggleMarkerSelection(index);
@@ -298,7 +290,6 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
 function toggleMarkerSelection(index) {
     if (selectedMarkerIndexes.has(index)) {
         selectedMarkerIndexes.delete(index);
-        // Восстанавливаем обычный цвет
         updateMarkerColor(index);
     } else {
         selectedMarkerIndexes.add(index);
@@ -308,7 +299,7 @@ function toggleMarkerSelection(index) {
     updateSelectionStats();
 }
 
-// Обновление цвета маркера (для восстановления после выбора)
+// Обновление цвета маркера
 function updateMarkerColor(index) {
     if (!markers[index]) return;
     
@@ -325,53 +316,54 @@ function updateMarkerColor(index) {
     }
     
     const number = markerData[index]?.id || index + 1;
-    const hasPlotVal = hasPlot;
-    const plotVal = hasPlot ? markerData[index].plot : '';
+    const plotDisplay = hasPlot ? markerData[index].plot : '';
     
-    const markerHtml = `
-        <div class="custom-marker" style="position: relative; cursor: pointer;">
-            <div style="
-                background: ${markerColor};
-                color: white;
-                font-weight: bold;
-                font-size: 14px;
-                font-family: Arial, sans-serif;
-                text-align: center;
-                line-height: 30px;
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            ">
-                ${number}
-            </div>
-            ${hasPlotVal ? `
-            <div style="
-                position: absolute;
-                bottom: -20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0,0,0,0.7);
-                color: white;
-                font-size: 10px;
-                padding: 2px 5px;
-                border-radius: 4px;
-                white-space: nowrap;
-                font-family: Arial, sans-serif;
-                font-weight: bold;
-            ">
-                уч.${plotVal}
-            </div>
-            ` : ''}
-        </div>
+    const markerContent = document.createElement('div');
+    markerContent.className = 'custom-marker';
+    markerContent.style.cssText = 'position: relative; cursor: pointer;';
+    
+    const circleDiv = document.createElement('div');
+    circleDiv.style.cssText = `
+        background: ${markerColor};
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        line-height: 30px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     `;
+    circleDiv.textContent = String(number);
+    markerContent.appendChild(circleDiv);
     
-    const MarkerLayout = ymaps.templateLayoutFactory.createClass(markerHtml);
-    markers[index].options.set('iconLayout', MarkerLayout);
+    if (hasPlot && plotDisplay) {
+        const plotDiv = document.createElement('div');
+        plotDiv.style.cssText = `
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        `;
+        plotDiv.textContent = `уч.${plotDisplay}`;
+        markerContent.appendChild(plotDiv);
+    }
+    
+    markers[index].options.set('iconContentLayout', ymaps.templateLayoutFactory.createClass('<div style="position: relative;">' + markerContent.outerHTML + '</div>'));
 }
 
-// Выделить все найденные адреса
+// Выделить всё
 function selectAll() {
     for (let i = 0; i < addressData.length; i++) {
         if (addressData[i].geocodeSuccess && markers[i]) {
@@ -385,7 +377,7 @@ function selectAll() {
     updateSelectionStats();
 }
 
-// Снять все выделения
+// Снять выделение
 function deselectAll() {
     for (let index of selectedMarkerIndexes) {
         if (markers[index]) {
@@ -397,10 +389,10 @@ function deselectAll() {
     updateSelectionStats();
 }
 
-// Массовое назначение участка всем выбранным
+// Назначить участок выбранным
 function assignPlotToSelected() {
     if (selectedMarkerIndexes.size === 0) {
-        alert('Сначала выберите адреса (через чекбоксы в списке или кликом по маркерам)');
+        alert('Сначала выберите адреса');
         return;
     }
     
@@ -408,7 +400,7 @@ function assignPlotToSelected() {
     let selectedPlot = plotInput.value.trim();
     
     if (!selectedPlot) {
-        alert('Введите номер участка (например: 1, 15, Участок А, Сектор 3)');
+        alert('Введите номер участка');
         return;
     }
     
@@ -421,7 +413,7 @@ function assignPlotToSelected() {
             
             const data = markerData[index];
             const isDuplicate = data.isDuplicate || false;
-            const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ВНИМАНИЕ: Дубликат адреса!</span>' : '';
+            const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
             markers[index].properties.set({
                 balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>${duplicateWarning}`,
                 hintContent: `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}]${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
@@ -469,7 +461,7 @@ function updateStats() {
     }
 }
 
-// Обновление списка адресов с чекбоксами и нумерацией
+// Обновление списка адресов
 function updateAddressList() {
     const addressListDiv = document.getElementById('addressList');
     addressListDiv.innerHTML = '';

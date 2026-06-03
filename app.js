@@ -1,4 +1,4 @@
-// app.js - стандартные маркеры с номером внутри
+// app.js - номер ВНУТРИ маркера
 
 let map;
 let markers = [];
@@ -139,80 +139,55 @@ function getMapLink() {
     navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
 }
 
-// Добавление маркера - СТАНДАРТНЫЙ МАРКЕР ЯНДЕКСА с номером внутри
+// Добавление маркера с номером ВНУТРИ
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const aptCount = markerData[index]?.apartments || 0;
     
-    // Определяем цвет маркера (стандартные цвета Яндекса)
-    let markerColor;
-    if (isDuplicate) markerColor = 'red';
-    else if (hasPlot) markerColor = 'orange';
-    else markerColor = 'green';
+    // Определяем цвет фона маркера
+    let bgColor;
+    let textColor = 'white';
+    if (isDuplicate) {
+        bgColor = '#f44336'; // красный
+    } else if (hasPlot) {
+        bgColor = '#ff9800'; // оранжевый
+    } else {
+        bgColor = '#4CAF50'; // зелёный
+    }
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Создаём HTML для номера внутри маркера
-    const numberHtml = `<div style="
-        background: white;
-        color: #333;
-        font-weight: bold;
-        font-size: 11px;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        line-height: 18px;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 1px solid #999;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        position: absolute;
-        top: -5px;
-        right: -8px;
-    ">${number}</div>`;
+    // Создаём КАСТОМНЫЙ МАРКЕР с номером внутри
+    const MarkerLayout = ymaps.templateLayoutFactory.createClass(
+        `<div style="
+            background: ${bgColor};
+            color: ${textColor};
+            font-weight: bold;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            line-height: 36px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.1s;
+        ">${number}</div>`
+    );
     
-    // Стандартный маркер Яндекса
     const placemark = new ymaps.Placemark([lat, lon], {
         balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>${duplicateWarning}`,
         hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-        preset: `islands#${markerColor}Icon`,
+        iconLayout: MarkerLayout,
+        iconShape: { type: 'Circle', coordinates: [18, 18], radius: 18 },
         balloonMaxWidth: 350
     });
-    
-    // Добавляем номер на маркер (через кастомный контент)
-    // Для этого используем iconContentLayout
-    const contentLayout = ymaps.templateLayoutFactory.createClass(
-        `<div style="position: relative;">
-            <div style="
-                position: absolute;
-                top: -8px;
-                right: -10px;
-                background: white;
-                color: #333;
-                font-weight: bold;
-                font-size: 11px;
-                font-family: Arial, sans-serif;
-                text-align: center;
-                line-height: 18px;
-                width: 18px;
-                height: 18px;
-                border-radius: 50%;
-                border: 1.5px solid ${markerColor === 'red' ? '#f44336' : (markerColor === 'orange' ? '#ff9800' : '#4CAF50')};
-                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-                background: white;
-                z-index: 10;
-            ">${number}</div>
-        </div>`
-    );
-    
-    // Применяем layout только если номер не слишком большой
-    if (number < 100) {
-        placemark.options.set('iconContentLayout', contentLayout);
-    }
     
     placemark.events.add('click', () => toggleMarkerSelection(index));
     
@@ -231,7 +206,25 @@ function toggleMarkerSelection(index) {
     } else {
         selectedMarkerIndexes.add(index);
         if (markers[index]) {
-            markers[index].options.set('preset', 'islands#blueIcon');
+            // Временно меняем на синий
+            const MarkerLayout = ymaps.templateLayoutFactory.createClass(
+                `<div style="
+                    background: #2196F3;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 14px;
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    line-height: 36px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                ">${markerData[index]?.id || index + 1}</div>`
+            );
+            markers[index].options.set('iconLayout', MarkerLayout);
         }
     }
     updateAddressList();
@@ -245,13 +238,36 @@ function updateMarkerColor(index) {
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const isDuplicate = markerData[index]?.isDuplicate || false;
+    const number = markerData[index]?.id || index + 1;
     
-    let markerColor;
-    if (isDuplicate) markerColor = 'red';
-    else if (hasPlot) markerColor = 'orange';
-    else markerColor = 'green';
+    let bgColor;
+    if (isDuplicate) {
+        bgColor = '#f44336';
+    } else if (hasPlot) {
+        bgColor = '#ff9800';
+    } else {
+        bgColor = '#4CAF50';
+    }
     
-    markers[index].options.set('preset', `islands#${markerColor}Icon`);
+    const MarkerLayout = ymaps.templateLayoutFactory.createClass(
+        `<div style="
+            background: ${bgColor};
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            line-height: 36px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+        ">${number}</div>`
+    );
+    
+    markers[index].options.set('iconLayout', MarkerLayout);
 }
 
 // Обновление суммы квартир
@@ -270,7 +286,25 @@ function selectAll() {
     for (let i = 0; i < addressData.length; i++) {
         if (addressData[i].geocodeSuccess && !selectedMarkerIndexes.has(i)) {
             selectedMarkerIndexes.add(i);
-            if (markers[i]) markers[i].options.set('preset', 'islands#blueIcon');
+            const number = markerData[i]?.id || i + 1;
+            const MarkerLayout = ymaps.templateLayoutFactory.createClass(
+                `<div style="
+                    background: #2196F3;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 14px;
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    line-height: 36px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    cursor: pointer;
+                ">${number}</div>`
+            );
+            if (markers[i]) markers[i].options.set('iconLayout', MarkerLayout);
         }
     }
     updateAddressList();

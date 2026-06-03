@@ -1,4 +1,4 @@
-// app.js - со стандартными метками Яндекса и нумерацией
+// app.js - полная версия с номером ВНУТРИ маркера
 
 let map;
 let markers = [];
@@ -148,8 +148,8 @@ async function restoreStateFromURL() {
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             const isDup = markerData[i]?.isDuplicate || false;
-            const markerGroup = addMarker(point.lat, point.lon, point.address, point.originalAddress, i, point.id || i + 1, isDup);
-            if (markerGroup) markers.push(markerGroup);
+            const marker = addMarker(point.lat, point.lon, point.address, point.originalAddress, i, point.id || i + 1, isDup);
+            if (marker) markers.push(marker);
         }
         
         updateAddressList();
@@ -159,7 +159,7 @@ async function restoreStateFromURL() {
             map.setCenter(state.center, state.zoom);
         } else if (markers.length > 0) {
             setTimeout(() => {
-                const coords = markers.map(m => m.main.geometry.getCoordinates());
+                const coords = markers.map(m => m.geometry.getCoordinates());
                 if (coords.length === 1) map.setCenter(coords[0], 16);
                 else if (coords.length > 1) {
                     const bounds = ymaps.geoQuery(coords).getBounds();
@@ -194,80 +194,103 @@ function getMapLink() {
     });
 }
 
-// Добавление маркера со стандартным видом и номером
+// Добавление маркера с номером ВНУТРИ метки
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     
-    // Определяем цвет метки
+    // Определяем цвет фона маркера
     let markerColor;
     if (isDuplicate) {
-        markerColor = 'red';
+        markerColor = '#f44336'; // красный
     } else if (hasPlot) {
-        markerColor = 'orange';
+        markerColor = '#ff9800'; // оранжевый
     } else {
-        markerColor = 'green';
+        markerColor = '#4CAF50'; // зелёный
     }
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Создаём стандартную метку Яндекс.Карт
-    const mainPlacemark = new ymaps.Placemark([lat, lon], {
+    // Создаём HTML-макет маркера с номером внутри
+    const markerHtml = `
+        <div class="custom-marker-wrapper" style="position: relative; cursor: pointer;">
+            <div class="custom-marker-icon" style="
+                width: 34px;
+                height: 34px;
+                background: ${markerColor};
+                border-radius: 50%;
+                border: 2px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 14px;
+                font-family: Arial, sans-serif;
+                color: white;
+                transition: transform 0.1s;
+            ">
+                ${number}
+            </div>
+            ${hasPlot && plotDisplay ? `
+            <div style="
+                position: absolute;
+                bottom: -24px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0,0,0,0.75);
+                color: white;
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                white-space: nowrap;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                pointer-events: none;
+            ">
+                уч.${plotDisplay}
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    const MarkerLayout = ymaps.templateLayoutFactory.createClass(markerHtml, {
+        build: function() {
+            ymaps.templateLayoutFactory.prototype.build.call(this);
+            const wrapper = this.getParentElement().querySelector('.custom-marker-wrapper');
+            if (wrapper) {
+                wrapper.onclick = (e) => {
+                    e.stopPropagation();
+                    const coords = this.getData().geometry.getCoordinates();
+                    this.getData().properties.balloon.open();
+                };
+            }
+        }
+    });
+    
+    const placemark = new ymaps.Placemark([lat, lon], {
         balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong>${duplicateWarning}`,
         hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-        preset: `islands#${markerColor}Icon`,
+        iconLayout: MarkerLayout,
+        iconShape: { type: 'Circle', coordinates: [17, 17], radius: 17 },
         balloonMaxWidth: 350
     });
     
-    map.geoObjects.add(mainPlacemark);
-    
-    // Добавляем отдельную метку с номером (смещённую относительно основной)
-    const numberPlacemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: ''
-    }, {
-        iconLayout: 'default#imageWithContent',
-        iconImageHref: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3C/svg%3E',
-        iconImageSize: [24, 24],
-        iconImageOffset: [18, -28],
-        iconContentLayout: ymaps.templateLayoutFactory.createClass(
-            `<div style="
-                background: #2196F3;
-                color: white;
-                font-weight: bold;
-                font-size: 10px;
-                font-family: Arial, sans-serif;
-                text-align: center;
-                line-height: 16px;
-                width: 16px;
-                height: 16px;
-                border-radius: 50%;
-                border: 1.5px solid white;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            ">${number}</div>`
-        )
-    });
-    
-    map.geoObjects.add(numberPlacemark);
-    
-    // Сохраняем оба объекта
-    const markerGroup = { main: mainPlacemark, number: numberPlacemark };
-    
-    // Обработчики клика
-    mainPlacemark.events.add('click', () => {
+    // Обработчик клика для выбора
+    placemark.events.add('click', () => {
         toggleMarkerSelection(index);
     });
-    numberPlacemark.events.add('click', () => {
-        toggleMarkerSelection(index);
-    });
+    
+    map.geoObjects.add(placemark);
     
     if (!isRestoringFromURL) {
         saveStateToURL();
     }
     
-    return markerGroup;
+    return placemark;
 }
 
 // Переключение выбора маркера
@@ -277,40 +300,105 @@ function toggleMarkerSelection(index) {
         updateMarkerColor(index);
     } else {
         selectedMarkerIndexes.add(index);
-        if (markers[index] && markers[index].main) {
-            markers[index].main.options.set('preset', 'islands#blueIcon');
+        if (markers[index]) {
+            markers[index].options.set('preset', 'islands#blueIcon');
         }
     }
     updateAddressList();
     updateSelectionStats();
 }
 
-// Обновление цвета маркера
+// Обновление цвета маркера (пересоздаём макет)
 function updateMarkerColor(index) {
-    if (!markers[index] || !markers[index].main) return;
+    if (!markers[index]) return;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const isDuplicate = markerData[index]?.isDuplicate || false;
+    const number = markerData[index]?.id || index + 1;
+    const plotDisplay = hasPlot ? markerData[index].plot : '';
+    const originalAddress = markerData[index]?.originalAddress || '';
+    const address = markerData[index]?.address || '';
     
     let markerColor;
     if (isDuplicate) {
-        markerColor = 'red';
+        markerColor = '#f44336';
     } else if (hasPlot) {
-        markerColor = 'orange';
+        markerColor = '#ff9800';
     } else {
-        markerColor = 'green';
+        markerColor = '#4CAF50';
     }
     
-    markers[index].main.options.set('preset', `islands#${markerColor}Icon`);
+    const markerHtml = `
+        <div class="custom-marker-wrapper" style="position: relative; cursor: pointer;">
+            <div class="custom-marker-icon" style="
+                width: 34px;
+                height: 34px;
+                background: ${markerColor};
+                border-radius: 50%;
+                border: 2px solid white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 14px;
+                font-family: Arial, sans-serif;
+                color: white;
+            ">
+                ${number}
+            </div>
+            ${hasPlot && plotDisplay ? `
+            <div style="
+                position: absolute;
+                bottom: -24px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0,0,0,0.75);
+                color: white;
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                white-space: nowrap;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                pointer-events: none;
+            ">
+                уч.${plotDisplay}
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    const MarkerLayout = ymaps.templateLayoutFactory.createClass(markerHtml, {
+        build: function() {
+            ymaps.templateLayoutFactory.prototype.build.call(this);
+            const wrapper = this.getParentElement().querySelector('.custom-marker-wrapper');
+            if (wrapper) {
+                wrapper.onclick = (e) => {
+                    e.stopPropagation();
+                    const coords = this.getData().geometry.getCoordinates();
+                    this.getData().properties.balloon.open();
+                };
+            }
+        }
+    });
+    
+    markers[index].options.set('iconLayout', MarkerLayout);
+    
+    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
+    markers[index].properties.set({
+        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong>${duplicateWarning}`,
+        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+    });
 }
 
 // Выделить всё
 function selectAll() {
     for (let i = 0; i < addressData.length; i++) {
-        if (addressData[i].geocodeSuccess && markers[i] && markers[i].main) {
+        if (addressData[i].geocodeSuccess && markers[i]) {
             if (!selectedMarkerIndexes.has(i)) {
                 selectedMarkerIndexes.add(i);
-                markers[i].main.options.set('preset', 'islands#blueIcon');
+                markers[i].options.set('preset', 'islands#blueIcon');
             }
         }
     }
@@ -321,7 +409,7 @@ function selectAll() {
 // Снять выделение
 function deselectAll() {
     for (let index of selectedMarkerIndexes) {
-        if (markers[index] && markers[index].main) {
+        if (markers[index]) {
             updateMarkerColor(index);
         }
     }
@@ -351,18 +439,6 @@ function assignPlotToSelected() {
         if (markerData[index] && addressData[index].geocodeSuccess) {
             markerData[index].plot = selectedPlot;
             updateMarkerColor(index);
-            
-            const data = markerData[index];
-            const isDuplicate = data.isDuplicate || false;
-            const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
-            
-            if (markers[index] && markers[index].main) {
-                markers[index].main.properties.set({
-                    balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>${duplicateWarning}`,
-                    hintContent: `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}]${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
-                });
-            }
-            
             assignedCount++;
         }
     }
@@ -458,10 +534,10 @@ function updateAddressList() {
         
         const contentDiv = div.querySelector('.address-content');
         contentDiv.onclick = (e) => {
-            if (markers[index] && markers[index].main) {
-                const coords = markers[index].main.geometry.getCoordinates();
+            if (markers[index]) {
+                const coords = markers[index].geometry.getCoordinates();
                 map.setCenter(coords, 16);
-                markers[index].main.balloon.open();
+                markers[index].balloon.open();
             }
         };
         
@@ -639,7 +715,7 @@ async function processExcelFile(file) {
             if (addressData[i].geocodeSuccess && markerData[i]) {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 const isDup = markerData[i].isDuplicate || false;
-                const markerGroup = addMarker(
+                const marker = addMarker(
                     markerData[i].lat,
                     markerData[i].lon,
                     markerData[i].address,
@@ -648,7 +724,7 @@ async function processExcelFile(file) {
                     markerData[i].id,
                     isDup
                 );
-                if (markerGroup) markers.push(markerGroup);
+                if (marker) markers.push(marker);
             }
         }
         
@@ -657,7 +733,7 @@ async function processExcelFile(file) {
         
         if (markers.length > 0) {
             setTimeout(() => {
-                const coords = markers.map(m => m.main.geometry.getCoordinates());
+                const coords = markers.map(m => m.geometry.getCoordinates());
                 if (coords.length === 1) map.setCenter(coords[0], 16);
                 else if (coords.length > 1) {
                     const bounds = ymaps.geoQuery(coords).getBounds();

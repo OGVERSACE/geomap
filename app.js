@@ -1,11 +1,11 @@
-// app.js - основная логика с МНОЖЕСТВЕННЫМ выбором
+// app.js - с возможностью ввода любого номера участка
 
 let map;
 let markers = [];
 let markerData = [];
 let addressData = [];
 let mapReady = false;
-let selectedMarkerIndexes = new Set(); // Множество выбранных индексов
+let selectedMarkerIndexes = new Set();
 
 // Инициализация карты
 function initMap() {
@@ -24,12 +24,14 @@ function initMap() {
 function addMarker(lat, lon, address, originalAddress, index) {
     if (!mapReady || !map) return null;
     
-    const hasPlot = markerData[index] && markerData[index].plot;
+    const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const markerColor = hasPlot ? 'orange' : 'green';
     
+    const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : 'не назначен';
+    
     const placemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: `<strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${hasPlot ? markerData[index].plot : 'не назначен'}</strong>`,
-        hintContent: `${originalAddress}${hasPlot ? ' [' + markerData[index].plot + ']' : ''}`
+        balloonContent: `<strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay}</strong>`,
+        hintContent: `${originalAddress}${hasPlot ? ' [Участок ' + markerData[index].plot + ']' : ''}`
     }, {
         preset: `islands#${markerColor}Icon`,
         balloonMaxWidth: 350
@@ -47,8 +49,7 @@ function addMarker(lat, lon, address, originalAddress, index) {
 function toggleMarkerSelection(index) {
     if (selectedMarkerIndexes.has(index)) {
         selectedMarkerIndexes.delete(index);
-        // Сбрасываем цвет на обычный
-        const hasPlot = markerData[index] && markerData[index].plot;
+        const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
         const markerColor = hasPlot ? 'orange' : 'green';
         markers[index].options.set('preset', `islands#${markerColor}Icon`);
     } else {
@@ -77,7 +78,7 @@ function selectAll() {
 function deselectAll() {
     for (let index of selectedMarkerIndexes) {
         if (markers[index]) {
-            const hasPlot = markerData[index] && markerData[index].plot;
+            const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
             const markerColor = hasPlot ? 'orange' : 'green';
             markers[index].options.set('preset', `islands#${markerColor}Icon`);
         }
@@ -87,18 +88,18 @@ function deselectAll() {
     updateSelectionStats();
 }
 
-// Массовое назначение участка всем выбранным
+// Массовое назначение участка всем выбранным (с вводом любого текста)
 function assignPlotToSelected() {
     if (selectedMarkerIndexes.size === 0) {
         alert('Сначала выберите адреса (через чекбоксы в списке или кликом по маркерам)');
         return;
     }
     
-    const plotSelect = document.getElementById('plotSelect');
-    const selectedPlot = plotSelect.value;
+    const plotInput = document.getElementById('plotInput');
+    let selectedPlot = plotInput.value.trim();
     
     if (!selectedPlot) {
-        alert('Выберите участок из списка');
+        alert('Введите номер участка (например: 1, 15, Участок А, Сектор 3)');
         return;
     }
     
@@ -106,7 +107,7 @@ function assignPlotToSelected() {
     
     for (let index of selectedMarkerIndexes) {
         if (markerData[index] && addressData[index].geocodeSuccess) {
-            // Назначаем участок
+            // Назначаем участок с введённым значением
             markerData[index].plot = selectedPlot;
             
             // Обновляем цвет маркера на оранжевый
@@ -116,7 +117,7 @@ function assignPlotToSelected() {
             const data = markerData[index];
             markers[index].properties.set({
                 balloonContent: `<strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>`,
-                hintContent: `${data.originalAddress} [${selectedPlot}]`
+                hintContent: `${data.originalAddress} [Участок ${selectedPlot}]`
             });
             
             assignedCount++;
@@ -125,6 +126,9 @@ function assignPlotToSelected() {
     
     // Очищаем выделение после назначения
     deselectAll();
+    
+    // Очищаем поле ввода для следующего назначения
+    plotInput.value = '';
     
     // Обновляем список и статистику
     updateAddressList();
@@ -146,7 +150,7 @@ function updateSelectionStats() {
 function updateStats() {
     const total = addressData.length;
     const success = addressData.filter(a => a.geocodeSuccess).length;
-    const assigned = markerData.filter(m => m && m.plot).length;
+    const assigned = markerData.filter(m => m && m.plot && m.plot !== '').length;
     const errors = addressData.filter(a => !a.geocodeSuccess).length;
     const onMap = markers.length;
     
@@ -163,7 +167,6 @@ function updateAddressList() {
     
     addressData.forEach((item, index) => {
         if (!item.geocodeSuccess) {
-            // Ошибочные адреса (без чекбокса)
             const div = document.createElement('div');
             div.className = 'address-item error';
             div.innerHTML = `
@@ -179,10 +182,9 @@ function updateAddressList() {
             return;
         }
         
-        // Найденные адреса (с чекбоксом)
         const markerInfo = markerData[index];
         const isSelected = selectedMarkerIndexes.has(index);
-        const plotText = markerInfo && markerInfo.plot ? ` → ${markerInfo.plot}` : '';
+        const plotText = markerInfo && markerInfo.plot ? ` → уч. ${markerInfo.plot}` : '';
         
         const div = document.createElement('div');
         div.className = `address-item success ${isSelected ? 'selected' : ''}`;
@@ -198,14 +200,12 @@ function updateAddressList() {
             </div>
         `;
         
-        // Обработчик для чекбокса
         const checkbox = div.querySelector('.address-checkbox');
         checkbox.onclick = (e) => {
             e.stopPropagation();
             toggleMarkerSelection(index);
         };
         
-        // Обработчик для клика по тексту (центрирование карты)
         const contentDiv = div.querySelector('.address-content');
         contentDiv.onclick = (e) => {
             if (markers[index]) {
@@ -228,8 +228,7 @@ function clearAll() {
     markerData = [];
     addressData = [];
     selectedMarkerIndexes.clear();
-    document.getElementById('currentSelection').innerHTML = 'Ничего не выбрано';
-    document.getElementById('plotSelect').value = '';
+    document.getElementById('plotInput').value = '';
     updateAddressList();
     updateStats();
     updateSelectionStats();
@@ -348,7 +347,7 @@ async function processExcelFile(file) {
         }
         
         const successCount = addressData.filter(a => a.geocodeSuccess).length;
-        alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов. Теперь можно выбирать несколько адресов и назначать участки.`);
+        alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов. Введите любой номер участка и назначьте выбранным адресам.`);
         
     } catch (error) {
         console.error('Ошибка:', error);

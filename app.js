@@ -1,4 +1,4 @@
-// app.js - с сохранением состояния в URL
+// app.js - с нумерацией точек и подсветкой дубликатов
 
 let map;
 let markers = [];
@@ -6,7 +6,7 @@ let markerData = [];
 let addressData = [];
 let mapReady = false;
 let selectedMarkerIndexes = new Set();
-let isRestoringFromURL = false; // Флаг для предотвращения зацикливания
+let isRestoringFromURL = false;
 
 // Инициализация карты
 function initMap() {
@@ -18,34 +18,53 @@ function initMap() {
         });
         mapReady = true;
         
-        // Слушаем события перемещения карты
         map.events.add(['boundschange', 'actionend'], function() {
             if (!isRestoringFromURL) {
                 saveStateToURL();
             }
         });
         
-        // Проверяем, есть ли состояние в URL
         restoreStateFromURL();
-        
         console.log('Карта готова');
     });
+}
+
+// Функция для поиска дубликатов адресов
+function findDuplicateAddresses() {
+    const addressMap = new Map();
+    const duplicates = new Set();
+    
+    // Сначала собираем все адреса
+    for (let i = 0; i < addressData.length; i++) {
+        const item = addressData[i];
+        if (item.geocodeSuccess) {
+            // Ключ для сравнения: улица + дом + корпус (без учёта регистра)
+            const key = `${item.street.toLowerCase()}|${item.house}|${item.building || ''}`;
+            if (addressMap.has(key)) {
+                duplicates.add(i);
+                duplicates.add(addressMap.get(key));
+            } else {
+                addressMap.set(key, i);
+            }
+        }
+    }
+    
+    return duplicates;
 }
 
 // Сохранение состояния в URL
 function saveStateToURL() {
     if (!mapReady || !map) return;
     
-    // Получаем центр и зум
     const center = map.getCenter();
     const zoom = map.getZoom();
     
-    // Сохраняем данные о точках с участками
     const pointsData = [];
     for (let i = 0; i < markerData.length; i++) {
         const data = markerData[i];
         if (data && data.lat && data.lon) {
             pointsData.push({
+                id: i + 1, // Номер точки (1-based)
                 lat: data.lat,
                 lon: data.lon,
                 address: data.address,
@@ -54,23 +73,21 @@ function saveStateToURL() {
                 street: addressData[i]?.street,
                 house: addressData[i]?.house,
                 building: addressData[i]?.building,
-                city: addressData[i]?.city
+                city: addressData[i]?.city,
+                isDuplicate: data.isDuplicate || false
             });
         }
     }
     
-    // Кодируем данные для URL
     const state = {
         center: [center[0], center[1]],
         zoom: zoom,
         points: pointsData
     };
     
-    // Преобразуем в JSON и кодируем для URL
     const stateStr = JSON.stringify(state);
-    const encodedState = btoa(encodeURIComponent(stateStr)); // base64 кодирование
+    const encodedState = btoa(encodeURIComponent(stateStr));
     
-    // Обновляем URL без перезагрузки страницы
     const newUrl = `${window.location.origin}${window.location.pathname}?state=${encodedState}`;
     window.history.pushState({}, '', newUrl);
 }
@@ -85,19 +102,15 @@ async function restoreStateFromURL() {
     isRestoringFromURL = true;
     
     try {
-        // Декодируем состояние
         const stateStr = decodeURIComponent(atob(encodedState));
         const state = JSON.parse(stateStr);
         
         if (!state.points || state.points.length === 0) return;
         
-        // Восстанавливаем точки
         const points = state.points;
         
-        // Очищаем текущие данные
         clearAll();
         
-        // Восстанавливаем данные адресов
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             
@@ -115,32 +128,39 @@ async function restoreStateFromURL() {
             });
             
             markerData.push({
+                id: point.id || i + 1,
                 address: point.address,
                 originalAddress: point.originalAddress,
                 plot: point.plot || null,
                 lat: point.lat,
-                lon: point.lon
+                lon: point.lon,
+                isDuplicate: point.isDuplicate || false
             });
         }
         
-        // Создаём маркеры на карте (с небольшой задержкой)
+        // Находим дубликаты после восстановления
+        const duplicates = findDuplicateAddresses();
+        for (let i = 0; i < markerData.length; i++) {
+            if (markerData[i]) {
+                markerData[i].isDuplicate = duplicates.has(i);
+            }
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 200));
         
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
-            const marker = addMarker(point.lat, point.lon, point.address, point.originalAddress, i);
+            const isDup = markerData[i]?.isDuplicate || false;
+            const marker = addMarker(point.lat, point.lon, point.address, point.originalAddress, i, i + 1, isDup);
             if (marker) markers.push(marker);
         }
         
-        // Обновляем список и статистику
         updateAddressList();
         updateStats();
         
-        // Устанавливаем центр и зум карты
         if (state.center && state.zoom) {
             map.setCenter(state.center, state.zoom);
         } else if (markers.length > 0) {
-            // Адаптируем под все маркеры
             setTimeout(() => {
                 const coords = markers.map(m => m.geometry.getCoordinates());
                 if (coords.length === 1) map.setCenter(coords[0], 16);
@@ -160,38 +180,37 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение ссылки на текущее состояние (копирование в буфер)
+// Получение ссылки на текущее состояние
 function getMapLink() {
     if (!mapReady || !map) {
         alert('Карта ещё не загружена');
         return;
     }
     
-    // Сохраняем текущее состояние перед копированием
     saveStateToURL();
-    
-    // Копируем текущий URL
     const url = window.location.href;
     
     navigator.clipboard.writeText(url).then(() => {
-        alert('✅ Ссылка скопирована!\n\n' + url + '\n\nТеперь вы можете отправить её кому угодно. При открытии ссылки карта восстановится в точности с текущими точками и участками.');
+        alert('✅ Ссылка скопирована!\n\n' + url + '\n\nПри открытии ссылки карта восстановится с точками и участками.');
     }).catch(() => {
         prompt('Скопируйте ссылку вручную:', url);
     });
 }
 
-// Добавление маркера
-function addMarker(lat, lon, address, originalAddress, index) {
+// Добавление маркера с номером
+function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
-    const markerColor = hasPlot ? 'orange' : 'green';
+    const markerColor = isDuplicate ? 'red' : (hasPlot ? 'orange' : 'green');
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : 'не назначен';
+    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ВНИМАНИЕ: Дубликат адреса!</span>' : '';
     
+    // Создаём метку с номером
     const placemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: `<strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay}</strong>`,
-        hintContent: `${originalAddress}${hasPlot ? ' [Участок ' + markerData[index].plot + ']' : ''}`
+        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay}</strong>${duplicateWarning}`,
+        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [Участок ' + markerData[index].plot + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
         preset: `islands#${markerColor}Icon`,
         balloonMaxWidth: 350
@@ -203,7 +222,6 @@ function addMarker(lat, lon, address, originalAddress, index) {
     
     map.geoObjects.add(placemark);
     
-    // Сохраняем состояние после добавления маркера
     if (!isRestoringFromURL) {
         saveStateToURL();
     }
@@ -216,7 +234,8 @@ function toggleMarkerSelection(index) {
     if (selectedMarkerIndexes.has(index)) {
         selectedMarkerIndexes.delete(index);
         const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
-        const markerColor = hasPlot ? 'orange' : 'green';
+        const isDuplicate = markerData[index]?.isDuplicate || false;
+        const markerColor = isDuplicate ? 'red' : (hasPlot ? 'orange' : 'green');
         markers[index].options.set('preset', `islands#${markerColor}Icon`);
     } else {
         selectedMarkerIndexes.add(index);
@@ -245,7 +264,8 @@ function deselectAll() {
     for (let index of selectedMarkerIndexes) {
         if (markers[index]) {
             const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
-            const markerColor = hasPlot ? 'orange' : 'green';
+            const isDuplicate = markerData[index]?.isDuplicate || false;
+            const markerColor = isDuplicate ? 'red' : (hasPlot ? 'orange' : 'green');
             markers[index].options.set('preset', `islands#${markerColor}Icon`);
         }
     }
@@ -274,12 +294,15 @@ function assignPlotToSelected() {
     for (let index of selectedMarkerIndexes) {
         if (markerData[index] && addressData[index].geocodeSuccess) {
             markerData[index].plot = selectedPlot;
-            markers[index].options.set('preset', 'islands#orangeIcon');
+            const isDuplicate = markerData[index]?.isDuplicate || false;
+            const markerColor = isDuplicate ? 'red' : 'orange';
+            markers[index].options.set('preset', `islands#${markerColor}Icon`);
             
             const data = markerData[index];
+            const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ВНИМАНИЕ: Дубликат адреса!</span>' : '';
             markers[index].properties.set({
-                balloonContent: `<strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>`,
-                hintContent: `${data.originalAddress} [Участок ${selectedPlot}]`
+                balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>${duplicateWarning}`,
+                hintContent: `№${data.id || index + 1}: ${data.originalAddress} [Участок ${selectedPlot}]${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
             });
             
             assignedCount++;
@@ -290,8 +313,6 @@ function assignPlotToSelected() {
     plotInput.value = '';
     updateAddressList();
     updateStats();
-    
-    // Сохраняем состояние после назначения участков
     saveStateToURL();
     
     alert(`Назначен участок "${selectedPlot}" для ${assignedCount} адресов`);
@@ -313,14 +334,21 @@ function updateStats() {
     const assigned = markerData.filter(m => m && m.plot && m.plot !== '').length;
     const errors = addressData.filter(a => !a.geocodeSuccess).length;
     const onMap = markers.length;
+    const duplicates = markerData.filter(m => m && m.isDuplicate).length;
     
     document.getElementById('totalCount').textContent = total;
     document.getElementById('mapCount').textContent = onMap;
     document.getElementById('assignedCount').textContent = assigned;
     document.getElementById('errorCount').textContent = errors;
+    
+    // Добавляем отображение дубликатов, если есть
+    const dupElement = document.getElementById('duplicateCount');
+    if (dupElement) {
+        dupElement.textContent = duplicates;
+    }
 }
 
-// Обновление списка адресов с чекбоксами
+// Обновление списка адресов с чекбоксами и нумерацией
 function updateAddressList() {
     const addressListDiv = document.getElementById('addressList');
     addressListDiv.innerHTML = '';
@@ -344,16 +372,21 @@ function updateAddressList() {
         
         const markerInfo = markerData[index];
         const isSelected = selectedMarkerIndexes.has(index);
+        const isDuplicate = markerInfo?.isDuplicate || false;
         const plotText = markerInfo && markerInfo.plot ? ` → уч. ${markerInfo.plot}` : '';
+        const duplicateText = isDuplicate ? ' ⚠️ ДУБЛИКАТ' : '';
+        const itemNumber = markerInfo?.id || index + 1;
         
         const div = document.createElement('div');
-        div.className = `address-item success ${isSelected ? 'selected' : ''}`;
+        div.className = `address-item success ${isSelected ? 'selected' : ''} ${isDuplicate ? 'duplicate' : ''}`;
+        div.style.borderLeft = isDuplicate ? '3px solid #f44336' : '';
         div.innerHTML = `
             <div style="display: flex; align-items: flex-start; gap: 8px;">
                 <input type="checkbox" class="address-checkbox" data-index="${index}" ${isSelected ? 'checked' : ''} style="margin-top: 2px;">
                 <div style="flex: 1; cursor: pointer;" class="address-content">
-                    <strong>📍 ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong>
-                    <span style="color: #ff9800;">${plotText}</span><br>
+                    <strong><span style="background: #2196F3; color: white; padding: 0px 6px; border-radius: 12px; font-size: 11px; margin-right: 8px;">${itemNumber}</span> ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong>
+                    <span style="color: #ff9800;">${plotText}</span>
+                    <span style="color: #f44336; font-weight: bold;">${duplicateText}</span><br>
                     <small>${item.geocodeResult.address.substring(0, 60)}...</small>
                     <div class="address-plot">📌 Участок: ${markerInfo && markerInfo.plot ? markerInfo.plot : 'не назначен'}</div>
                 </div>
@@ -393,7 +426,6 @@ function clearAll() {
     updateStats();
     updateSelectionStats();
     
-    // Обновляем URL (удаляем состояние)
     if (!isRestoringFromURL) {
         const newUrl = `${window.location.origin}${window.location.pathname}`;
         window.history.pushState({}, '', newUrl);
@@ -403,19 +435,45 @@ function clearAll() {
 // Экспорт в Excel
 function exportToExcel() {
     const exportData = [];
-    exportData.push(['Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Широта', 'Долгота', 'Назначенный участок']);
+    exportData.push(['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Широта', 'Долгота', 'Назначенный участок', 'Дубликат']);
     
     addressData.forEach((item, index) => {
+        const markerInfo = markerData[index];
+        const number = markerInfo?.id || index + 1;
+        
         if (item.geocodeSuccess) {
-            const markerInfo = markerData[index];
-            exportData.push(['Найден', item.city || '', item.street, item.house, item.building || '', item.geocodeResult.address, item.geocodeResult.lat, item.geocodeResult.lon, markerInfo && markerInfo.plot ? markerInfo.plot : '']);
+            exportData.push([
+                number,
+                'Найден',
+                item.city || '',
+                item.street,
+                item.house,
+                item.building || '',
+                item.geocodeResult.address,
+                item.geocodeResult.lat,
+                item.geocodeResult.lon,
+                markerInfo && markerInfo.plot ? markerInfo.plot : '',
+                markerInfo?.isDuplicate ? 'Да' : ''
+            ]);
         } else {
-            exportData.push(['Не найден', item.city || '', item.street, item.house, item.building || '', '', '', '', '']);
+            exportData.push([
+                number,
+                'Не найден',
+                item.city || '',
+                item.street,
+                item.house,
+                item.building || '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            ]);
         }
     });
     
     const ws = XLSX.utils.aoa_to_sheet(exportData);
-    ws['!cols'] = [{wch:10},{wch:15},{wch:25},{wch:12},{wch:10},{wch:50},{wch:15},{wch:15},{wch:20}];
+    ws['!cols'] = [{wch:5},{wch:10},{wch:15},{wch:25},{wch:12},{wch:10},{wch:50},{wch:15},{wch:15},{wch:20},{wch:10}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Адреса с участками');
     XLSX.writeFile(wb, `участки_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
@@ -457,6 +515,7 @@ async function processExcelFile(file) {
             const row = rows[i];
             if (row.length > 0 && row[streetCol]) {
                 addresses.push({
+                    id: i,
                     city: cityCol !== -1 && row[cityCol] ? String(row[cityCol]).trim() : '',
                     street: String(row[streetCol] || '').trim(),
                     house: String(row[houseCol] || '').trim(),
@@ -468,6 +527,7 @@ async function processExcelFile(file) {
         progressText.textContent = `0/${addresses.length}`;
         progressFill.style.width = '0%';
         
+        // Сначала геокодируем все адреса
         for (let i = 0; i < addresses.length; i++) {
             const addr = addresses[i];
             
@@ -481,11 +541,15 @@ async function processExcelFile(file) {
                     const originalAddress = `${addr.street}, ${addr.house}${addr.building ? ` корп.${addr.building}` : ''}`;
                     
                     addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result });
-                    markerData.push({ address: result.address, originalAddress: originalAddress, plot: null, lat: result.lat, lon: result.lon });
-                    
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    const marker = addMarker(result.lat, result.lon, result.address, originalAddress, addressData.length - 1);
-                    if (marker) markers.push(marker);
+                    markerData.push({
+                        id: addr.id,
+                        address: result.address,
+                        originalAddress: originalAddress,
+                        plot: null,
+                        lat: result.lat,
+                        lon: result.lon,
+                        isDuplicate: false
+                    });
                 } else {
                     addressData.push({ ...addr, geocodeSuccess: false, error: result.error || 'Не найден' });
                     markerData.push(null);
@@ -496,6 +560,40 @@ async function processExcelFile(file) {
             progressFill.style.width = `${progress}%`;
             progressText.textContent = `${i + 1}/${addresses.length}`;
             await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+        // Находим дубликаты адресов
+        const addressKeyMap = new Map();
+        for (let i = 0; i < addressData.length; i++) {
+            const item = addressData[i];
+            if (item.geocodeSuccess) {
+                const key = `${item.street.toLowerCase()}|${item.house}|${item.building || ''}`;
+                if (addressKeyMap.has(key)) {
+                    const firstIndex = addressKeyMap.get(key);
+                    markerData[firstIndex].isDuplicate = true;
+                    markerData[i].isDuplicate = true;
+                } else {
+                    addressKeyMap.set(key, i);
+                }
+            }
+        }
+        
+        // Создаём маркеры на карте
+        for (let i = 0; i < addressData.length; i++) {
+            if (addressData[i].geocodeSuccess && markerData[i]) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                const isDup = markerData[i].isDuplicate || false;
+                const marker = addMarker(
+                    markerData[i].lat, 
+                    markerData[i].lon, 
+                    markerData[i].address, 
+                    markerData[i].originalAddress, 
+                    i, 
+                    markerData[i].id, 
+                    isDup
+                );
+                if (marker) markers.push(marker);
+            }
         }
         
         updateAddressList();
@@ -509,13 +607,13 @@ async function processExcelFile(file) {
                     const bounds = ymaps.geoQuery(coords).getBounds();
                     if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
                 }
-                // Сохраняем состояние после загрузки
                 saveStateToURL();
             }, 200);
         }
         
         const successCount = addressData.filter(a => a.geocodeSuccess).length;
-        alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов.`);
+        const duplicateCount = markerData.filter(m => m && m.isDuplicate).length;
+        alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов. Дубликатов: ${duplicateCount}`);
         
     } catch (error) {
         console.error('Ошибка:', error);

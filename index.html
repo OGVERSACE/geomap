@@ -266,19 +266,13 @@
             </div>
             
             <div class="plot-selector">
-                <label>🎯 Назначить участок выбранным точкам:</label>
-                <select id="plotSelect">
-                    <option value="">-- Выберите участок --</option>
-                    <option value="Участок 1">Участок №1</option>
-                    <option value="Участок 2">Участок №2</option>
-                    <option value="Участок 3">Участок №3</option>
-                    <option value="Участок 4">Участок №4</option>
-                    <option value="Участок 5">Участок №5</option>
-                </select>
-                <div class="current-selection" id="currentSelection">
-                    📌 Выбрано адресов: <span id="selectedCount">0</span>
-                </div>
-            </div>
+				<label>🎯 Назначить участок выбранным точкам:</label>
+				<input type="text" id="plotInput" placeholder="Введите номер участка (например: 1, 15, Участок А)" style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+				<button class="btn-primary" id="assignPlotBtn" style="margin-top: 8px; width: 100%;">📌 Назначить участок выбранным</button>
+				<div class="current-selection" id="currentSelection">
+					📌 Выбрано адресов: <span id="selectedCount">0</span>
+				</div>
+			</div>
             
             <div class="button-group">
                 <button class="btn-secondary" id="selectAllBtn">✅ Выбрать всё</button>

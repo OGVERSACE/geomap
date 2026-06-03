@@ -1,4 +1,4 @@
-// app.js - с возможностью ввода любого номера участка
+// app.js - с сохранением состояния в URL
 
 let map;
 let markers = [];
@@ -6,6 +6,7 @@ let markerData = [];
 let addressData = [];
 let mapReady = false;
 let selectedMarkerIndexes = new Set();
+let isRestoringFromURL = false; // Флаг для предотвращения зацикливания
 
 // Инициализация карты
 function initMap() {
@@ -16,7 +17,166 @@ function initMap() {
             controls: ['zoomControl', 'fullscreenControl']
         });
         mapReady = true;
+        
+        // Слушаем события перемещения карты
+        map.events.add(['boundschange', 'actionend'], function() {
+            if (!isRestoringFromURL) {
+                saveStateToURL();
+            }
+        });
+        
+        // Проверяем, есть ли состояние в URL
+        restoreStateFromURL();
+        
         console.log('Карта готова');
+    });
+}
+
+// Сохранение состояния в URL
+function saveStateToURL() {
+    if (!mapReady || !map) return;
+    
+    // Получаем центр и зум
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    
+    // Сохраняем данные о точках с участками
+    const pointsData = [];
+    for (let i = 0; i < markerData.length; i++) {
+        const data = markerData[i];
+        if (data && data.lat && data.lon) {
+            pointsData.push({
+                lat: data.lat,
+                lon: data.lon,
+                address: data.address,
+                originalAddress: data.originalAddress,
+                plot: data.plot || '',
+                street: addressData[i]?.street,
+                house: addressData[i]?.house,
+                building: addressData[i]?.building,
+                city: addressData[i]?.city
+            });
+        }
+    }
+    
+    // Кодируем данные для URL
+    const state = {
+        center: [center[0], center[1]],
+        zoom: zoom,
+        points: pointsData
+    };
+    
+    // Преобразуем в JSON и кодируем для URL
+    const stateStr = JSON.stringify(state);
+    const encodedState = btoa(encodeURIComponent(stateStr)); // base64 кодирование
+    
+    // Обновляем URL без перезагрузки страницы
+    const newUrl = `${window.location.origin}${window.location.pathname}?state=${encodedState}`;
+    window.history.pushState({}, '', newUrl);
+}
+
+// Восстановление состояния из URL
+async function restoreStateFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const encodedState = urlParams.get('state');
+    
+    if (!encodedState) return;
+    
+    isRestoringFromURL = true;
+    
+    try {
+        // Декодируем состояние
+        const stateStr = decodeURIComponent(atob(encodedState));
+        const state = JSON.parse(stateStr);
+        
+        if (!state.points || state.points.length === 0) return;
+        
+        // Восстанавливаем точки
+        const points = state.points;
+        
+        // Очищаем текущие данные
+        clearAll();
+        
+        // Восстанавливаем данные адресов
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            
+            addressData.push({
+                city: point.city || '',
+                street: point.street || '',
+                house: point.house || '',
+                building: point.building || '',
+                geocodeSuccess: true,
+                geocodeResult: {
+                    address: point.address,
+                    lat: point.lat,
+                    lon: point.lon
+                }
+            });
+            
+            markerData.push({
+                address: point.address,
+                originalAddress: point.originalAddress,
+                plot: point.plot || null,
+                lat: point.lat,
+                lon: point.lon
+            });
+        }
+        
+        // Создаём маркеры на карте (с небольшой задержкой)
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            const marker = addMarker(point.lat, point.lon, point.address, point.originalAddress, i);
+            if (marker) markers.push(marker);
+        }
+        
+        // Обновляем список и статистику
+        updateAddressList();
+        updateStats();
+        
+        // Устанавливаем центр и зум карты
+        if (state.center && state.zoom) {
+            map.setCenter(state.center, state.zoom);
+        } else if (markers.length > 0) {
+            // Адаптируем под все маркеры
+            setTimeout(() => {
+                const coords = markers.map(m => m.geometry.getCoordinates());
+                if (coords.length === 1) map.setCenter(coords[0], 16);
+                else if (coords.length > 1) {
+                    const bounds = ymaps.geoQuery(coords).getBounds();
+                    if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
+                }
+            }, 300);
+        }
+        
+        console.log(`Восстановлено ${points.length} точек из ссылки`);
+        
+    } catch (error) {
+        console.error('Ошибка восстановления состояния:', error);
+    } finally {
+        isRestoringFromURL = false;
+    }
+}
+
+// Получение ссылки на текущее состояние (копирование в буфер)
+function getMapLink() {
+    if (!mapReady || !map) {
+        alert('Карта ещё не загружена');
+        return;
+    }
+    
+    // Сохраняем текущее состояние перед копированием
+    saveStateToURL();
+    
+    // Копируем текущий URL
+    const url = window.location.href;
+    
+    navigator.clipboard.writeText(url).then(() => {
+        alert('✅ Ссылка скопирована!\n\n' + url + '\n\nТеперь вы можете отправить её кому угодно. При открытии ссылки карта восстановится в точности с текущими точками и участками.');
+    }).catch(() => {
+        prompt('Скопируйте ссылку вручную:', url);
     });
 }
 
@@ -42,6 +202,12 @@ function addMarker(lat, lon, address, originalAddress, index) {
     });
     
     map.geoObjects.add(placemark);
+    
+    // Сохраняем состояние после добавления маркера
+    if (!isRestoringFromURL) {
+        saveStateToURL();
+    }
+    
     return placemark;
 }
 
@@ -88,7 +254,7 @@ function deselectAll() {
     updateSelectionStats();
 }
 
-// Массовое назначение участка всем выбранным (с вводом любого текста)
+// Массовое назначение участка всем выбранным
 function assignPlotToSelected() {
     if (selectedMarkerIndexes.size === 0) {
         alert('Сначала выберите адреса (через чекбоксы в списке или кликом по маркерам)');
@@ -107,13 +273,9 @@ function assignPlotToSelected() {
     
     for (let index of selectedMarkerIndexes) {
         if (markerData[index] && addressData[index].geocodeSuccess) {
-            // Назначаем участок с введённым значением
             markerData[index].plot = selectedPlot;
-            
-            // Обновляем цвет маркера на оранжевый
             markers[index].options.set('preset', 'islands#orangeIcon');
             
-            // Обновляем всплывающую подсказку
             const data = markerData[index];
             markers[index].properties.set({
                 balloonContent: `<strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>`,
@@ -124,15 +286,13 @@ function assignPlotToSelected() {
         }
     }
     
-    // Очищаем выделение после назначения
     deselectAll();
-    
-    // Очищаем поле ввода для следующего назначения
     plotInput.value = '';
-    
-    // Обновляем список и статистику
     updateAddressList();
     updateStats();
+    
+    // Сохраняем состояние после назначения участков
+    saveStateToURL();
     
     alert(`Назначен участок "${selectedPlot}" для ${assignedCount} адресов`);
 }
@@ -232,6 +392,12 @@ function clearAll() {
     updateAddressList();
     updateStats();
     updateSelectionStats();
+    
+    // Обновляем URL (удаляем состояние)
+    if (!isRestoringFromURL) {
+        const newUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.pushState({}, '', newUrl);
+    }
 }
 
 // Экспорт в Excel
@@ -343,11 +509,13 @@ async function processExcelFile(file) {
                     const bounds = ymaps.geoQuery(coords).getBounds();
                     if (bounds) map.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 });
                 }
+                // Сохраняем состояние после загрузки
+                saveStateToURL();
             }, 200);
         }
         
         const successCount = addressData.filter(a => a.geocodeSuccess).length;
-        alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов. Введите любой номер участка и назначьте выбранным адресам.`);
+        alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов.`);
         
     } catch (error) {
         console.error('Ошибка:', error);
@@ -366,6 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('clearMarkersBtn').onclick = clearAll;
     document.getElementById('selectAllBtn').onclick = selectAll;
     document.getElementById('deselectAllBtn').onclick = deselectAll;
+    document.getElementById('getLinkBtn').onclick = getMapLink;
     
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');

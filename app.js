@@ -1,4 +1,4 @@
-// app.js - с кликабельными кластерами
+// app.js - с кликабельными кластерами и нормальными маркерами
 
 let map;
 let markers = [];
@@ -19,12 +19,12 @@ function initMap() {
         });
         mapReady = true;
         
-        // Создаём кластеризатор с КЛИКАБЕЛЬНЫМИ кластерами
+        // Создаём кластеризатор с КАСТОМНЫМ обработчиком клика
         clusterer = new ymaps.Clusterer({
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
-            clusterDisableClickZoom: true, // Отключаем автоматический зум при клике
-            clusterOpenBalloonOnClick: false, // Отключаем стандартный балун
+            clusterDisableClickZoom: true,
+            clusterOpenBalloonOnClick: false,
             clusterIconLayout: 'default#imageWithContent',
             clusterIconContentLayout: ymaps.templateLayoutFactory.createClass(
                 '<div style="' +
@@ -77,7 +77,7 @@ function initMap() {
             updateSelectionStats();
             updateAptSum();
             
-            // Показываем уведомление
+            // Всплывающее уведомление
             alert(`✅ Выбрано ${indexesToSelect.length} адресов из кластера`);
         });
         
@@ -175,20 +175,7 @@ async function restoreStateFromURL() {
             const marker = createYmapsMarker(point.lat, point.lon, point.address, point.originalAddress, i, point.id || i + 1, isDup);
             if (marker) {
                 ymapsMarkers.push(marker);
-                
-                const numberPlacemark = new ymaps.Placemark([point.lat, point.lon], { balloonContent: '' }, {
-                    iconLayout: 'default#imageWithContent',
-                    iconImageHref: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3C/svg%3E',
-                    iconImageSize: [24, 24],
-                    iconImageOffset: [18, -28],
-                    iconContentLayout: ymaps.templateLayoutFactory.createClass(
-                        `<div style="background: #2196F3; color: white; font-weight: bold; font-size: 10px; font-family: Arial, sans-serif; text-align: center; line-height: 16px; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">${point.id || i + 1}</div>`
-                    )
-                });
-                numberPlacemark.events.add('click', () => toggleMarkerSelection(i));
-                map.geoObjects.add(numberPlacemark);
-                
-                markers.push({ main: marker, number: numberPlacemark, index: i });
+                markers.push({ main: marker, index: i });
             }
         }
         
@@ -447,14 +434,6 @@ function updateAddressList() {
 // Очистка
 function clearAll() {
     if (clusterer) clusterer.removeAll();
-    if (map && map.geoObjects) {
-        map.geoObjects.each(obj => {
-            if (obj.options.get('iconLayout') === 'default#imageWithContent' || 
-                (obj.properties && obj.properties.get('markerIndex') === undefined)) {
-                map.geoObjects.remove(obj);
-            }
-        });
-    }
     markers = [];
     markerData = [];
     addressData = [];
@@ -607,20 +586,7 @@ async function processExcelFile(file) {
                 );
                 if (marker) {
                     ymapsMarkers.push(marker);
-                    
-                    const numberPlacemark = new ymaps.Placemark([markerData[i].lat, markerData[i].lon], { balloonContent: '' }, {
-                        iconLayout: 'default#imageWithContent',
-                        iconImageHref: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3C/svg%3E',
-                        iconImageSize: [24, 24],
-                        iconImageOffset: [18, -28],
-                        iconContentLayout: ymaps.templateLayoutFactory.createClass(
-                            `<div style="background: #2196F3; color: white; font-weight: bold; font-size: 10px; font-family: Arial, sans-serif; text-align: center; line-height: 16px; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">${markerData[i].id}</div>`
-                        )
-                    });
-                    numberPlacemark.events.add('click', () => toggleMarkerSelection(i));
-                    map.geoObjects.add(numberPlacemark);
-                    
-                    markers.push({ main: marker, number: numberPlacemark, index: i });
+                    markers.push({ main: marker, index: i });
                 }
             }
         }

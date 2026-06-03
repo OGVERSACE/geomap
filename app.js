@@ -197,7 +197,7 @@ function getMapLink() {
     });
 }
 
-// Добавление маркера с номером
+// Добавление маркера с номером на самом маркере
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
@@ -207,12 +207,66 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : 'не назначен';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ВНИМАНИЕ: Дубликат адреса!</span>' : '';
     
-    // Создаём метку с номером
+    // Создаём кастомный макет маркера с номером
+    const markerLayout = ymaps.templateLayoutFactory.createClass(
+        `<div class="custom-marker" style="
+            position: relative;
+            cursor: pointer;
+        ">
+            <div style="
+                background: ${isDuplicate ? '#f44336' : (hasPlot ? '#ff9800' : '#4CAF50')};
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+                font-family: Arial, sans-serif;
+                text-align: center;
+                line-height: 28px;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                border: 2px solid white;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                transition: transform 0.1s;
+            ">
+                ${number}
+            </div>
+            <div style="
+                position: absolute;
+                bottom: -18px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0,0,0,0.6);
+                color: white;
+                font-size: 10px;
+                padding: 2px 4px;
+                border-radius: 4px;
+                white-space: nowrap;
+                font-family: Arial, sans-serif;
+                display: ${hasPlot ? 'block' : 'none'};
+            ">
+                ${hasPlot ? markerData[index].plot : ''}
+            </div>
+        </div>`,
+        {
+            build: function() {
+                ymaps.templateLayoutFactory.prototype.build.call(this);
+                // Добавляем обработчик события для открытия балуна
+                this.getParentElement().getElementsByClassName('custom-marker')[0].onclick = (e) => {
+                    e.stopPropagation();
+                    const coords = this.getData().geometry.getCoordinates();
+                    // Открываем балун
+                    this.getData().properties.balloon.open();
+                };
+            }
+        }
+    );
+    
     const placemark = new ymaps.Placemark([lat, lon], {
         balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay}</strong>${duplicateWarning}`,
         hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [Участок ' + markerData[index].plot + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-        preset: `islands#${markerColor}Icon`,
+        iconLayout: markerLayout,
+        iconShape: { type: 'Circle', coordinates: [14, 14], radius: 14 },
         balloonMaxWidth: 350
     });
     

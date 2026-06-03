@@ -1,4 +1,4 @@
-// app.js - полная версия с номером ВНУТРИ маркера
+// app.js - РАБОЧАЯ ВЕРСИЯ со стандартными метками + номер рядом
 
 let map;
 let markers = [];
@@ -29,7 +29,7 @@ function initMap() {
     });
 }
 
-// Функция для поиска дубликатов адресов
+// Поиск дубликатов
 function findDuplicateAddresses() {
     const addressMap = new Map();
     const duplicates = new Set();
@@ -46,7 +46,6 @@ function findDuplicateAddresses() {
             }
         }
     }
-    
     return duplicates;
 }
 
@@ -56,8 +55,8 @@ function saveStateToURL() {
     
     const center = map.getCenter();
     const zoom = map.getZoom();
-    
     const pointsData = [];
+    
     for (let i = 0; i < markerData.length; i++) {
         const data = markerData[i];
         if (data && data.lat && data.lon) {
@@ -77,15 +76,9 @@ function saveStateToURL() {
         }
     }
     
-    const state = {
-        center: [center[0], center[1]],
-        zoom: zoom,
-        points: pointsData
-    };
-    
+    const state = { center: [center[0], center[1]], zoom: zoom, points: pointsData };
     const stateStr = JSON.stringify(state);
     const encodedState = btoa(encodeURIComponent(stateStr));
-    
     const newUrl = `${window.location.origin}${window.location.pathname}?state=${encodedState}`;
     window.history.pushState({}, '', newUrl);
 }
@@ -94,7 +87,6 @@ function saveStateToURL() {
 async function restoreStateFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const encodedState = urlParams.get('state');
-    
     if (!encodedState) return;
     
     isRestoringFromURL = true;
@@ -102,29 +94,21 @@ async function restoreStateFromURL() {
     try {
         const stateStr = decodeURIComponent(atob(encodedState));
         const state = JSON.parse(stateStr);
-        
         if (!state.points || state.points.length === 0) return;
         
         const points = state.points;
-        
         clearAll();
         
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
-            
             addressData.push({
                 city: point.city || '',
                 street: point.street || '',
                 house: point.house || '',
                 building: point.building || '',
                 geocodeSuccess: true,
-                geocodeResult: {
-                    address: point.address,
-                    lat: point.lat,
-                    lon: point.lon
-                }
+                geocodeResult: { address: point.address, lat: point.lat, lon: point.lon }
             });
-            
             markerData.push({
                 id: point.id || i + 1,
                 address: point.address,
@@ -138,9 +122,7 @@ async function restoreStateFromURL() {
         
         const duplicates = findDuplicateAddresses();
         for (let i = 0; i < markerData.length; i++) {
-            if (markerData[i]) {
-                markerData[i].isDuplicate = duplicates.has(i);
-            }
+            if (markerData[i]) markerData[i].isDuplicate = duplicates.has(i);
         }
         
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -148,8 +130,8 @@ async function restoreStateFromURL() {
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             const isDup = markerData[i]?.isDuplicate || false;
-            const marker = addMarker(point.lat, point.lon, point.address, point.originalAddress, i, point.id || i + 1, isDup);
-            if (marker) markers.push(marker);
+            const markerGroup = addMarker(point.lat, point.lon, point.address, point.originalAddress, i, point.id || i + 1, isDup);
+            if (markerGroup) markers.push(markerGroup);
         }
         
         updateAddressList();
@@ -159,7 +141,7 @@ async function restoreStateFromURL() {
             map.setCenter(state.center, state.zoom);
         } else if (markers.length > 0) {
             setTimeout(() => {
-                const coords = markers.map(m => m.geometry.getCoordinates());
+                const coords = markers.map(m => m.main.geometry.getCoordinates());
                 if (coords.length === 1) map.setCenter(coords[0], 16);
                 else if (coords.length > 1) {
                     const bounds = ymaps.geoQuery(coords).getBounds();
@@ -167,11 +149,8 @@ async function restoreStateFromURL() {
                 }
             }, 300);
         }
-        
-        console.log(`Восстановлено ${points.length} точек из ссылки`);
-        
     } catch (error) {
-        console.error('Ошибка восстановления состояния:', error);
+        console.error('Ошибка восстановления:', error);
     } finally {
         isRestoringFromURL = false;
     }
@@ -183,10 +162,8 @@ function getMapLink() {
         alert('Карта ещё не загружена');
         return;
     }
-    
     saveStateToURL();
     const url = window.location.href;
-    
     navigator.clipboard.writeText(url).then(() => {
         alert('✅ Ссылка скопирована!');
     }).catch(() => {
@@ -194,212 +171,109 @@ function getMapLink() {
     });
 }
 
-// Добавление маркера с номером ВНУТРИ метки
+// Добавление маркера - РАБОЧАЯ ВЕРСИЯ
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     
-    // Определяем цвет фона маркера
     let markerColor;
     if (isDuplicate) {
-        markerColor = '#f44336'; // красный
+        markerColor = 'red';
     } else if (hasPlot) {
-        markerColor = '#ff9800'; // оранжевый
+        markerColor = 'orange';
     } else {
-        markerColor = '#4CAF50'; // зелёный
+        markerColor = 'green';
     }
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Создаём HTML-макет маркера с номером внутри
-    const markerHtml = `
-        <div class="custom-marker-wrapper" style="position: relative; cursor: pointer;">
-            <div class="custom-marker-icon" style="
-                width: 34px;
-                height: 34px;
-                background: ${markerColor};
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: bold;
-                font-size: 14px;
-                font-family: Arial, sans-serif;
-                color: white;
-                transition: transform 0.1s;
-            ">
-                ${number}
-            </div>
-            ${hasPlot && plotDisplay ? `
-            <div style="
-                position: absolute;
-                bottom: -24px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0,0,0,0.75);
-                color: white;
-                font-size: 10px;
-                padding: 2px 6px;
-                border-radius: 4px;
-                white-space: nowrap;
-                font-family: Arial, sans-serif;
-                font-weight: bold;
-                pointer-events: none;
-            ">
-                уч.${plotDisplay}
-            </div>
-            ` : ''}
-        </div>
-    `;
-    
-    const MarkerLayout = ymaps.templateLayoutFactory.createClass(markerHtml, {
-        build: function() {
-            ymaps.templateLayoutFactory.prototype.build.call(this);
-            const wrapper = this.getParentElement().querySelector('.custom-marker-wrapper');
-            if (wrapper) {
-                wrapper.onclick = (e) => {
-                    e.stopPropagation();
-                    const coords = this.getData().geometry.getCoordinates();
-                    this.getData().properties.balloon.open();
-                };
-            }
-        }
-    });
-    
-    const placemark = new ymaps.Placemark([lat, lon], {
+    // ОСНОВНАЯ МЕТКА (стандартная)
+    const mainPlacemark = new ymaps.Placemark([lat, lon], {
         balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong>${duplicateWarning}`,
         hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-        iconLayout: MarkerLayout,
-        iconShape: { type: 'Circle', coordinates: [17, 17], radius: 17 },
+        preset: `islands#${markerColor}Icon`,
         balloonMaxWidth: 350
     });
     
-    // Обработчик клика для выбора
-    placemark.events.add('click', () => {
-        toggleMarkerSelection(index);
+    map.geoObjects.add(mainPlacemark);
+    
+    // МЕТКА С НОМЕРОМ (рядом, смещённая)
+    const numberPlacemark = new ymaps.Placemark([lat, lon], {
+        balloonContent: ''
+    }, {
+        iconLayout: 'default#imageWithContent',
+        iconImageHref: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3C/svg%3E',
+        iconImageSize: [24, 24],
+        iconImageOffset: [18, -28],
+        iconContentLayout: ymaps.templateLayoutFactory.createClass(
+            `<div style="
+                background: #2196F3;
+                color: white;
+                font-weight: bold;
+                font-size: 10px;
+                font-family: Arial, sans-serif;
+                text-align: center;
+                line-height: 16px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                border: 1.5px solid white;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            ">${number}</div>`
+        )
     });
     
-    map.geoObjects.add(placemark);
+    map.geoObjects.add(numberPlacemark);
     
-    if (!isRestoringFromURL) {
-        saveStateToURL();
-    }
+    const markerGroup = { main: mainPlacemark, number: numberPlacemark };
     
-    return placemark;
+    mainPlacemark.events.add('click', () => toggleMarkerSelection(index));
+    numberPlacemark.events.add('click', () => toggleMarkerSelection(index));
+    
+    if (!isRestoringFromURL) saveStateToURL();
+    
+    return markerGroup;
 }
 
-// Переключение выбора маркера
+// Переключение выбора
 function toggleMarkerSelection(index) {
     if (selectedMarkerIndexes.has(index)) {
         selectedMarkerIndexes.delete(index);
         updateMarkerColor(index);
     } else {
         selectedMarkerIndexes.add(index);
-        if (markers[index]) {
-            markers[index].options.set('preset', 'islands#blueIcon');
+        if (markers[index] && markers[index].main) {
+            markers[index].main.options.set('preset', 'islands#blueIcon');
         }
     }
     updateAddressList();
     updateSelectionStats();
 }
 
-// Обновление цвета маркера (пересоздаём макет)
+// Обновление цвета маркера
 function updateMarkerColor(index) {
-    if (!markers[index]) return;
+    if (!markers[index] || !markers[index].main) return;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const isDuplicate = markerData[index]?.isDuplicate || false;
-    const number = markerData[index]?.id || index + 1;
-    const plotDisplay = hasPlot ? markerData[index].plot : '';
-    const originalAddress = markerData[index]?.originalAddress || '';
-    const address = markerData[index]?.address || '';
     
     let markerColor;
-    if (isDuplicate) {
-        markerColor = '#f44336';
-    } else if (hasPlot) {
-        markerColor = '#ff9800';
-    } else {
-        markerColor = '#4CAF50';
-    }
+    if (isDuplicate) markerColor = 'red';
+    else if (hasPlot) markerColor = 'orange';
+    else markerColor = 'green';
     
-    const markerHtml = `
-        <div class="custom-marker-wrapper" style="position: relative; cursor: pointer;">
-            <div class="custom-marker-icon" style="
-                width: 34px;
-                height: 34px;
-                background: ${markerColor};
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: bold;
-                font-size: 14px;
-                font-family: Arial, sans-serif;
-                color: white;
-            ">
-                ${number}
-            </div>
-            ${hasPlot && plotDisplay ? `
-            <div style="
-                position: absolute;
-                bottom: -24px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0,0,0,0.75);
-                color: white;
-                font-size: 10px;
-                padding: 2px 6px;
-                border-radius: 4px;
-                white-space: nowrap;
-                font-family: Arial, sans-serif;
-                font-weight: bold;
-                pointer-events: none;
-            ">
-                уч.${plotDisplay}
-            </div>
-            ` : ''}
-        </div>
-    `;
-    
-    const MarkerLayout = ymaps.templateLayoutFactory.createClass(markerHtml, {
-        build: function() {
-            ymaps.templateLayoutFactory.prototype.build.call(this);
-            const wrapper = this.getParentElement().querySelector('.custom-marker-wrapper');
-            if (wrapper) {
-                wrapper.onclick = (e) => {
-                    e.stopPropagation();
-                    const coords = this.getData().geometry.getCoordinates();
-                    this.getData().properties.balloon.open();
-                };
-            }
-        }
-    });
-    
-    markers[index].options.set('iconLayout', MarkerLayout);
-    
-    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
-    markers[index].properties.set({
-        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong>${duplicateWarning}`,
-        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''}${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
-    });
+    markers[index].main.options.set('preset', `islands#${markerColor}Icon`);
 }
 
 // Выделить всё
 function selectAll() {
     for (let i = 0; i < addressData.length; i++) {
-        if (addressData[i].geocodeSuccess && markers[i]) {
-            if (!selectedMarkerIndexes.has(i)) {
-                selectedMarkerIndexes.add(i);
-                markers[i].options.set('preset', 'islands#blueIcon');
-            }
+        if (addressData[i].geocodeSuccess && markers[i] && markers[i].main && !selectedMarkerIndexes.has(i)) {
+            selectedMarkerIndexes.add(i);
+            markers[i].main.options.set('preset', 'islands#blueIcon');
         }
     }
     updateAddressList();
@@ -409,16 +283,14 @@ function selectAll() {
 // Снять выделение
 function deselectAll() {
     for (let index of selectedMarkerIndexes) {
-        if (markers[index]) {
-            updateMarkerColor(index);
-        }
+        if (markers[index] && markers[index].main) updateMarkerColor(index);
     }
     selectedMarkerIndexes.clear();
     updateAddressList();
     updateSelectionStats();
 }
 
-// Назначить участок выбранным
+// Назначить участок
 function assignPlotToSelected() {
     if (selectedMarkerIndexes.size === 0) {
         alert('Сначала выберите адреса');
@@ -439,6 +311,17 @@ function assignPlotToSelected() {
         if (markerData[index] && addressData[index].geocodeSuccess) {
             markerData[index].plot = selectedPlot;
             updateMarkerColor(index);
+            
+            const data = markerData[index];
+            const isDuplicate = data.isDuplicate || false;
+            const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
+            
+            if (markers[index] && markers[index].main) {
+                markers[index].main.properties.set({
+                    balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong>${duplicateWarning}`,
+                    hintContent: `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}]${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+                });
+            }
             assignedCount++;
         }
     }
@@ -448,20 +331,15 @@ function assignPlotToSelected() {
     updateAddressList();
     updateStats();
     saveStateToURL();
-    
     alert(`Назначен участок "${selectedPlot}" для ${assignedCount} адресов`);
 }
 
-// Обновление статистики выбранных
+// Обновление статистики
 function updateSelectionStats() {
-    const selectedCount = selectedMarkerIndexes.size;
     const selectedSpan = document.getElementById('selectedCount');
-    if (selectedSpan) {
-        selectedSpan.textContent = selectedCount;
-    }
+    if (selectedSpan) selectedSpan.textContent = selectedMarkerIndexes.size;
 }
 
-// Обновление общей статистики
 function updateStats() {
     const total = addressData.length;
     const success = addressData.filter(a => a.geocodeSuccess).length;
@@ -474,11 +352,8 @@ function updateStats() {
     document.getElementById('mapCount').textContent = onMap;
     document.getElementById('assignedCount').textContent = assigned;
     document.getElementById('errorCount').textContent = errors;
-    
     const dupElement = document.getElementById('duplicateCount');
-    if (dupElement) {
-        dupElement.textContent = duplicates;
-    }
+    if (dupElement) dupElement.textContent = duplicates;
 }
 
 // Обновление списка адресов
@@ -490,15 +365,7 @@ function updateAddressList() {
         if (!item.geocodeSuccess) {
             const div = document.createElement('div');
             div.className = 'address-item error';
-            div.innerHTML = `
-                <div style="display: flex; align-items: flex-start; gap: 8px;">
-                    <div style="width: 20px;"></div>
-                    <div style="flex: 1;">
-                        <strong>❌ ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong><br>
-                        <small>${item.error || 'Не найден'}</small>
-                    </div>
-                </div>
-            `;
+            div.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 8px;"><div style="width: 20px;"></div><div style="flex: 1;"><strong>❌ ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong><br><small>${item.error || 'Не найден'}</small></div></div>`;
             addressListDiv.appendChild(div);
             return;
         }
@@ -527,27 +394,23 @@ function updateAddressList() {
         `;
         
         const checkbox = div.querySelector('.address-checkbox');
-        checkbox.onclick = (e) => {
-            e.stopPropagation();
-            toggleMarkerSelection(index);
-        };
+        checkbox.onclick = (e) => { e.stopPropagation(); toggleMarkerSelection(index); };
         
         const contentDiv = div.querySelector('.address-content');
-        contentDiv.onclick = (e) => {
-            if (markers[index]) {
-                const coords = markers[index].geometry.getCoordinates();
+        contentDiv.onclick = () => {
+            if (markers[index] && markers[index].main) {
+                const coords = markers[index].main.geometry.getCoordinates();
                 map.setCenter(coords, 16);
-                markers[index].balloon.open();
+                markers[index].main.balloon.open();
             }
         };
         
         addressListDiv.appendChild(div);
     });
-    
     updateSelectionStats();
 }
 
-// Очистка всех данных
+// Очистка
 function clearAll() {
     if (mapReady && map && map.geoObjects) map.geoObjects.removeAll();
     markers = [];
@@ -558,50 +421,20 @@ function clearAll() {
     updateAddressList();
     updateStats();
     updateSelectionStats();
-    
-    if (!isRestoringFromURL) {
-        const newUrl = `${window.location.origin}${window.location.pathname}`;
-        window.history.pushState({}, '', newUrl);
-    }
+    if (!isRestoringFromURL) window.history.pushState({}, '', window.location.pathname);
 }
 
 // Экспорт в Excel
 function exportToExcel() {
-    const exportData = [];
-    exportData.push(['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Широта', 'Долгота', 'Назначенный участок', 'Дубликат']);
+    const exportData = [['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Широта', 'Долгота', 'Назначенный участок', 'Дубликат']];
     
     addressData.forEach((item, index) => {
         const markerInfo = markerData[index];
         const number = markerInfo?.id || index + 1;
-        
         if (item.geocodeSuccess) {
-            exportData.push([
-                number,
-                'Найден',
-                item.city || '',
-                item.street,
-                item.house,
-                item.building || '',
-                item.geocodeResult.address,
-                item.geocodeResult.lat,
-                item.geocodeResult.lon,
-                markerInfo && markerInfo.plot ? markerInfo.plot : '',
-                markerInfo?.isDuplicate ? 'Да' : ''
-            ]);
+            exportData.push([number, 'Найден', item.city || '', item.street, item.house, item.building || '', item.geocodeResult.address, item.geocodeResult.lat, item.geocodeResult.lon, markerInfo?.plot || '', markerInfo?.isDuplicate ? 'Да' : '']);
         } else {
-            exportData.push([
-                number,
-                'Не найден',
-                item.city || '',
-                item.street,
-                item.house,
-                item.building || '',
-                '',
-                '',
-                '',
-                '',
-                ''
-            ]);
+            exportData.push([number, 'Не найден', item.city || '', item.street, item.house, item.building || '', '', '', '', '', '']);
         }
     });
     
@@ -613,7 +446,7 @@ function exportToExcel() {
     alert(`Экспортировано ${exportData.length - 1} адресов`);
 }
 
-// Обработка Excel файла
+// Обработка Excel
 async function processExcelFile(file) {
     const loadingDiv = document.getElementById('loading');
     const progressFill = document.getElementById('progressFill');
@@ -627,20 +460,17 @@ async function processExcelFile(file) {
         const workbook = XLSX.read(data);
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-        
         if (rows.length < 2) throw new Error('Файл должен содержать заголовки и данные');
         
         const headers = rows[0];
         let cityCol = -1, streetCol = -1, houseCol = -1, buildingCol = -1;
-        
-        headers.forEach((header, index) => {
-            const headerLower = String(header).toLowerCase();
-            if (headerLower.includes('город') || headerLower === 'city') cityCol = index;
-            if (headerLower.includes('улиц') || headerLower === 'street') streetCol = index;
-            if (headerLower.includes('дом') || headerLower === 'house') houseCol = index;
-            if (headerLower.includes('корп') || headerLower === 'building') buildingCol = index;
+        headers.forEach((header, idx) => {
+            const h = String(header).toLowerCase();
+            if (h.includes('город') || h === 'city') cityCol = idx;
+            if (h.includes('улиц') || h === 'street') streetCol = idx;
+            if (h.includes('дом') || h === 'house') houseCol = idx;
+            if (h.includes('корп') || h === 'building') buildingCol = idx;
         });
-        
         if (streetCol === -1 || houseCol === -1) throw new Error('Не найдены колонки "улица" и/или "дом"');
         
         const addresses = [];
@@ -662,39 +492,26 @@ async function processExcelFile(file) {
         
         for (let i = 0; i < addresses.length; i++) {
             const addr = addresses[i];
-            
             if (!addr.street || !addr.house) {
                 addressData.push({ ...addr, geocodeSuccess: false, error: 'Не указана улица или дом' });
                 markerData.push(null);
             } else {
                 const result = await geocodeAddressWithCache(addr.street, addr.house, addr.building, addr.city);
-                
                 if (result.success) {
                     const originalAddress = `${addr.street}, ${addr.house}${addr.building ? ` корп.${addr.building}` : ''}`;
-                    
                     addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result });
-                    markerData.push({
-                        id: addr.id,
-                        address: result.address,
-                        originalAddress: originalAddress,
-                        plot: null,
-                        lat: result.lat,
-                        lon: result.lon,
-                        isDuplicate: false
-                    });
+                    markerData.push({ id: addr.id, address: result.address, originalAddress: originalAddress, plot: null, lat: result.lat, lon: result.lon, isDuplicate: false });
                 } else {
                     addressData.push({ ...addr, geocodeSuccess: false, error: result.error || 'Не найден' });
                     markerData.push(null);
                 }
             }
-            
             const progress = ((i + 1) / addresses.length) * 100;
             progressFill.style.width = `${progress}%`;
             progressText.textContent = `${i + 1}/${addresses.length}`;
             await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        // Находим дубликаты
         const addressKeyMap = new Map();
         for (let i = 0; i < addressData.length; i++) {
             const item = addressData[i];
@@ -710,21 +527,12 @@ async function processExcelFile(file) {
             }
         }
         
-        // Создаём маркеры
         for (let i = 0; i < addressData.length; i++) {
             if (addressData[i].geocodeSuccess && markerData[i]) {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 const isDup = markerData[i].isDuplicate || false;
-                const marker = addMarker(
-                    markerData[i].lat,
-                    markerData[i].lon,
-                    markerData[i].address,
-                    markerData[i].originalAddress,
-                    i,
-                    markerData[i].id,
-                    isDup
-                );
-                if (marker) markers.push(marker);
+                const markerGroup = addMarker(markerData[i].lat, markerData[i].lon, markerData[i].address, markerData[i].originalAddress, i, markerData[i].id, isDup);
+                if (markerGroup) markers.push(markerGroup);
             }
         }
         
@@ -733,7 +541,7 @@ async function processExcelFile(file) {
         
         if (markers.length > 0) {
             setTimeout(() => {
-                const coords = markers.map(m => m.geometry.getCoordinates());
+                const coords = markers.map(m => m.main.geometry.getCoordinates());
                 if (coords.length === 1) map.setCenter(coords[0], 16);
                 else if (coords.length > 1) {
                     const bounds = ymaps.geoQuery(coords).getBounds();
@@ -755,10 +563,9 @@ async function processExcelFile(file) {
     }
 }
 
-// Инициализация приложения
+// Инициализация
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
-    
     document.getElementById('assignPlotBtn').onclick = assignPlotToSelected;
     document.getElementById('exportExcelBtn').onclick = exportToExcel;
     document.getElementById('clearMarkersBtn').onclick = clearAll;
@@ -768,30 +575,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
-    
     uploadArea.onclick = () => fileInput.click();
-    
-    uploadArea.ondragover = (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    };
-    
-    uploadArea.ondragleave = () => {
-        uploadArea.classList.remove('dragover');
-    };
-    
+    uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
+    uploadArea.ondragleave = () => { uploadArea.classList.remove('dragover'); };
     uploadArea.ondrop = (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
-        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-            processExcelFile(file);
-        } else {
-            alert('Загрузите файл Excel (.xlsx или .xls)');
-        }
+        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) processExcelFile(file);
+        else alert('Загрузите файл Excel (.xlsx или .xls)');
     };
-    
-    fileInput.onchange = (e) => {
-        if (e.target.files[0]) processExcelFile(e.target.files[0]);
-    };
+    fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
 });

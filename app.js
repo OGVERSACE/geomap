@@ -1,4 +1,4 @@
-// app.js - СТАНДАРТНЫЕ МАРКЕРЫ ЯНДЕКСА С НОМЕРОМ В ЦЕНТРЕ
+// app.js - КАСТОМНЫЙ МАРКЕР В СТИЛЕ ЯНДЕКСА с номером в центре
 
 let map;
 let markers = [];
@@ -139,14 +139,14 @@ function getMapLink() {
     navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
 }
 
-// Добавление маркера - номер В ЦЕНТРЕ стандартного маркера Яндекса
+// Добавление маркера - ВИЗУАЛЬНО КАК РОДНОЙ, но с номером в центре
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const aptCount = markerData[index]?.apartments || 0;
     
-    // Определяем цвет фона маркера
+    // Цвета как у стандартных маркеров Яндекса
     let bgColor;
     if (isDuplicate) {
         bgColor = '#f44336'; // красный
@@ -159,21 +159,22 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Создаём КАСТОМНЫЙ МАРКЕР в стиле Яндекса с номером в центре
+    // Создаём маркер, визуально НЕОТЛИЧИМЫЙ от родного, но с номером внутри
     const MarkerLayout = ymaps.templateLayoutFactory.createClass(
         `<div style="
             background: ${bgColor};
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            line-height: 32px;
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            color: white;
             cursor: pointer;
             transition: transform 0.1s;
         ">${number}</div>`
@@ -184,7 +185,7 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
         hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
         iconLayout: MarkerLayout,
-        iconShape: { type: 'Circle', coordinates: [16, 16], radius: 16 },
+        iconShape: { type: 'Circle', coordinates: [14, 14], radius: 14 },
         balloonMaxWidth: 350
     });
     
@@ -209,17 +210,18 @@ function toggleMarkerSelection(index) {
             const MarkerLayout = ymaps.templateLayoutFactory.createClass(
                 `<div style="
                     background: #2196F3;
-                    color: white;
-                    font-weight: bold;
-                    font-size: 14px;
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    line-height: 32px;
-                    width: 32px;
-                    height: 32px;
+                    width: 28px;
+                    height: 28px;
                     border-radius: 50%;
                     border: 2px solid white;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    color: white;
                     cursor: pointer;
                 ">${number}</div>`
             );
@@ -251,17 +253,18 @@ function updateMarkerColor(index) {
     const MarkerLayout = ymaps.templateLayoutFactory.createClass(
         `<div style="
             background: ${bgColor};
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            line-height: 32px;
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            color: white;
             cursor: pointer;
         ">${number}</div>`
     );
@@ -289,17 +292,18 @@ function selectAll() {
             const MarkerLayout = ymaps.templateLayoutFactory.createClass(
                 `<div style="
                     background: #2196F3;
-                    color: white;
-                    font-weight: bold;
-                    font-size: 14px;
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    line-height: 32px;
-                    width: 32px;
-                    height: 32px;
+                    width: 28px;
+                    height: 28px;
                     border-radius: 50%;
                     border: 2px solid white;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    font-size: 12px;
+                    font-family: Arial, sans-serif;
+                    color: white;
                     cursor: pointer;
                 ">${number}</div>`
             );

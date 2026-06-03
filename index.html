@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoMap - Назначение участков (множественный выбор)</title>
+    <title>GeoMap - Назначение участков (с нумерацией)</title>
     
     <!-- Яндекс.Карты (вставьте ваш ключ) -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=6d4481ef-d298-4dfe-8c48-7a0e8d282d1a&lang=ru_RU" type="text/javascript"></script>
@@ -103,6 +103,12 @@
         }
         .btn-danger:hover { background: #da190b; }
 
+        .btn-purple {
+            background: #9c27b0;
+            color: white;
+        }
+        .btn-purple:hover { background: #7b1fa2; }
+
         .stats {
             background: #f5f5f5;
             padding: 10px;
@@ -112,7 +118,7 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             margin-top: 8px;
         }
@@ -192,13 +198,14 @@
             margin: 10px 0;
         }
 
-        .plot-selector select {
+        .plot-selector input {
             width: 100%;
             padding: 8px;
             margin: 8px 0;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
+            box-sizing: border-box;
         }
 
         .plot-selector label {
@@ -232,7 +239,7 @@
 
         .button-group button {
             flex: 1;
-            min-width: 120px;
+            min-width: 100px;
         }
 
         .small-text {
@@ -243,26 +250,21 @@
         .address-checkbox {
             margin-top: 2px;
         }
-		/* Стили для маркеров с номерами */
-		.custom-marker {
-		cursor: pointer;
-		transition: transform 0.1s;
-		}
-		.custom-marker:hover {
-		transform: scale(1.1);
-		}
-		/* Анимация для выбранного маркера */
-		.custom-marker.selected div:first-child {
-		box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.5);
-		transform: scale(1.15);
-		}
+
+        /* Стили для маркеров с номерами */
+        .custom-marker {
+            cursor: pointer;
+        }
+        .custom-marker:hover div:first-child {
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="sidebar">
             <h2>🗺️ GeoMap - Назначение участков</h2>
-            <p class="small-text">Множественный выбор: ✓ чекбоксы или клик по маркеру</p>
+            <p class="small-text">✓ Множественный выбор | 📍 Номера на маркерах | ⚠️ Дубликаты</p>
             
             <div class="upload-area" id="uploadArea">
                 📁 Нажмите или перетащите файл Excel<br>
@@ -279,28 +281,27 @@
             </div>
             
             <div class="plot-selector">
-				<label>🎯 Назначить участок выбранным точкам:</label>
-				<input type="text" id="plotInput" placeholder="Введите номер участка (например: 1, 15, Участок А)" style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-				<button class="btn-primary" id="assignPlotBtn" style="margin-top: 8px; width: 100%;">📌 Назначить участок выбранным</button>
-				<div class="current-selection" id="currentSelection">
-					📌 Выбрано адресов: <span id="selectedCount">0</span>
-				</div>
-			</div>
+                <label>🎯 Назначить участок выбранным точкам:</label>
+                <input type="text" id="plotInput" placeholder="Введите номер участка (например: 1, 15, Участок А, Сектор 3)">
+                <button class="btn-primary" id="assignPlotBtn" style="margin-top: 8px; width: 100%;">📌 Назначить участок выбранным</button>
+                <div class="current-selection" id="currentSelection">
+                    📌 Выбрано адресов: <span id="selectedCount">0</span>
+                </div>
+            </div>
             
             <div class="button-group">
                 <button class="btn-secondary" id="selectAllBtn">✅ Выбрать всё</button>
                 <button class="btn-warning" id="deselectAllBtn">⬜ Снять всё</button>
-                <button class="btn-primary" id="assignPlotBtn">📌 Назначить участок</button>
+                <button class="btn-purple" id="getLinkBtn">🔗 Получить ссылку</button>
                 <button class="btn-secondary" id="exportExcelBtn">📎 Выгрузить Excel</button>
                 <button class="btn-danger" id="clearMarkersBtn">🗑️ Очистить всё</button>
-				<button class="btn-secondary" id="getLinkBtn" style="background: #9c27b0;">🔗 Получить ссылку</button>
             </div>
             
             <div class="stats" id="stats">
                 <strong>📊 Статистика:</strong>
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div>Всего адресов</div>
+                        <div>Всего</div>
                         <div class="stat-number" id="totalCount">0</div>
                     </div>
                     <div class="stat-card">
@@ -308,23 +309,26 @@
                         <div class="stat-number" id="mapCount">0</div>
                     </div>
                     <div class="stat-card">
-                        <div>С участками</div>
+                        <div>С участком</div>
                         <div class="stat-number" id="assignedCount">0</div>
                     </div>
                     <div class="stat-card">
                         <div>Не найдено</div>
                         <div class="stat-number" id="errorCount">0</div>
                     </div>
-					<div class="stat-card" style="background: #ffebee;">
-						<div>⚠️ Дубликаты</div>
-						<div class="stat-number" id="duplicateCount" style="color: #f44336;">0</div>
-					</div>
+                    <div class="stat-card" style="background: #ffebee;">
+                        <div>⚠️ Дубликаты</div>
+                        <div class="stat-number" id="duplicateCount" style="color: #f44336;">0</div>
+                    </div>
                 </div>
             </div>
             
             <h3>📋 Список адресов</h3>
             <div class="address-list" id="addressList"></div>
-            <div class="small-text" style="margin-top: 8px;">💡 Клик по адресу — центрирование карты</div>
+            <div class="small-text" style="margin-top: 8px;">
+                💡 Клик по адресу — центрирование карты<br>
+                🎯 Выберите адреса ✓ → введите номер участка → назначьте
+            </div>
         </div>
         
         <div class="map-container">

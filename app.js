@@ -1,4 +1,4 @@
-// app.js - с кластеризацией и выделением адресов при клике на кластер
+// app.js - с кликабельными кластерами
 
 let map;
 let markers = [];
@@ -24,8 +24,8 @@ function initMap() {
         clusterer = new ymaps.Clusterer({
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
-            clusterDisableClickZoom: false,
-            clusterOpenBalloonOnClick: false, // Отключаем стандартный балун
+            clusterDisableClickZoom: true,
+            clusterOpenBalloonOnClick: false,
             clusterIconLayout: 'default#imageWithContent',
             clusterIconContentLayout: ymaps.templateLayoutFactory.createClass(
                 '<div style="' +
@@ -42,16 +42,20 @@ function initMap() {
                     'border: 2px solid white;' +
                     'box-shadow: 0 2px 8px rgba(0,0,0,0.3);' +
                     'cursor: pointer;' +
+                    'z-index: 1000;' +
                 '">' +
                     '{{ properties.geoObjects.length }}' +
                 '</div>'
             )
         });
         
-        // ОБРАБОТЧИК КЛИКА ПО КЛАСТЕРУ - ВЫДЕЛЕНИЕ ВСЕХ АДРЕСОВ ВНУТРИ
+        // Принудительный обработчик клика по кластеру
         clusterer.events.add('click', function(e) {
             const cluster = e.get('target');
+            if (!cluster || !cluster.properties) return;
+            
             const geoObjects = cluster.properties.geoObjects;
+            if (!geoObjects || geoObjects.length === 0) return;
             
             // Собираем индексы всех точек в кластере
             const indexesToSelect = [];
@@ -62,6 +66,8 @@ function initMap() {
                     indexesToSelect.push(markerIndex);
                 }
             }
+            
+            if (indexesToSelect.length === 0) return;
             
             // Выделяем все точки из кластера
             for (let idx of indexesToSelect) {
@@ -78,12 +84,17 @@ function initMap() {
             updateSelectionStats();
             updateAptSum();
             
-            // Показываем уведомление
-            alert(`✅ Выбрано ${indexesToSelect.length} адресов из кластера`);
+            // Уведомление
+            const message = `✅ Выбрано ${indexesToSelect.length} адресов`;
+            const notification = document.createElement('div');
+            notification.textContent = message;
+            notification.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#4CAF50; color:white; padding:8px 16px; border-radius:8px; z-index:10000; font-size:14px;';
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 2000);
             
             // Центрируем карту на кластере
             const coords = cluster.geometry.getCoordinates();
-            map.setCenter(coords, map.getZoom() + 1);
+            map.setCenter(coords, Math.min(map.getZoom() + 2, 17));
         });
         
         map.geoObjects.add(clusterer);
@@ -93,7 +104,7 @@ function initMap() {
         });
         
         restoreStateFromURL();
-        console.log('Карта готова с кластеризацией и выделением');
+        console.log('Карта готова с кликабельными кластерами');
     });
 }
 

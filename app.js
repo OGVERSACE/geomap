@@ -1,4 +1,4 @@
-// app.js - КАСТОМНЫЙ МАРКЕР В СТИЛЕ ЯНДЕКСА с номером в центре
+// app.js - с использованием КАСТОМНОГО SVG-ПИНА
 
 let map;
 let markers = [];
@@ -139,32 +139,62 @@ function getMapLink() {
     navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
 }
 
-// Добавление маркера - ВИЗУАЛЬНО КАК РОДНОЙ, но с номером в центре
-function addCustomMarker(lat, lon, number, status) {
-    let color;
+// Функция для генерации цветного пина с номером
+function getColoredPin(number, color) {
+    // Загружаем ваш pin.svg и меняем цвет и номер
+    // Так как SVG нельзя просто так перекрасить, генерируем пин на лету
+    const svgString = `<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
+    <path d="M18 0 C8 0 0 8 0 18 C0 28 18 36 18 36 C18 36 36 28 36 18 C36 8 28 0 18 0 Z" 
+          fill="${color}" stroke="white" stroke-width="2"/>
+    <text x="18" y="24" font-size="16" font-weight="bold" 
+          fill="white" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
+</svg>`;
+    
+    return 'data:image/svg+xml,' + encodeURIComponent(svgString);
+}
 
-    if (status === 'duplicate') color = '#F44336';
-    else if (status === 'withPlot') color = '#FF9800';
-    else color = '#4CAF50';
-
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
-            <path d="M18 0 C8 0 0 8 0 18 C0 28 18 36 18 36 C18 36 36 28 36 18 C36 8 28 0 18 0 Z"
-                  fill="${color}" stroke="white" stroke-width="2"/>
-            <text x="18" y="23" font-size="16" font-weight="bold"
-                  fill="white" text-anchor="middle" font-family="Arial">${number}</text>
-        </svg>
-    `;
-
-    return new ymaps.Placemark([lat, lon], {
-        balloonContent: `Адрес №${number}`,
-        hintContent: `№${number}`
+// Добавление маркера с ВАШИМ SVG-ПИНОМ
+function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
+    if (!mapReady || !map) return null;
+    
+    const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
+    const aptCount = markerData[index]?.apartments || 0;
+    
+    // Определяем цвет пина
+    let pinColor;
+    if (isDuplicate) {
+        pinColor = '#f44336'; // красный
+    } else if (hasPlot) {
+        pinColor = '#ff9800'; // оранжевый
+    } else {
+        pinColor = '#4CAF50'; // зелёный
+    }
+    
+    const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
+    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
+    
+    // Создаём SVG-пин с номером
+    const pinUrl = getColoredPin(number, pinColor);
+    
+    const placemark = new ymaps.Placemark([lat, lon], {
+        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>${duplicateWarning}`,
+        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
-         iconLayout: 'default#image',
-		iconImageHref: 'pin.svg',   ← путь к вашему файлу
-		iconImageSize: [36, 36],
-		iconImageOffset: [-18, -36]
+        iconLayout: 'default#image',
+        iconImageHref: pinUrl,
+        iconImageSize: [36, 36],
+        iconImageOffset: [-18, -36],
+        balloonMaxWidth: 350
     });
+    
+    placemark.events.add('click', () => toggleMarkerSelection(index));
+    
+    map.geoObjects.add(placemark);
+    markers.push(placemark);
+    
+    if (!isRestoringFromURL) saveStateToURL();
+    return placemark;
 }
 
 // Переключение выбора
@@ -176,25 +206,8 @@ function toggleMarkerSelection(index) {
         selectedMarkerIndexes.add(index);
         if (markers[index]) {
             const number = markerData[index]?.id || index + 1;
-            const MarkerLayout = ymaps.templateLayoutFactory.createClass(
-                `<div style="
-                    background: #2196F3;
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 50%;
-                    border: 2px solid white;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-size: 12px;
-                    font-family: Arial, sans-serif;
-                    color: white;
-                    cursor: pointer;
-                ">${number}</div>`
-            );
-            markers[index].options.set('iconLayout', MarkerLayout);
+            const pinUrl = getColoredPin(number, '#2196F3'); // синий для выделения
+            markers[index].options.set('iconImageHref', pinUrl);
         }
     }
     updateAddressList();
@@ -210,35 +223,17 @@ function updateMarkerColor(index) {
     const isDuplicate = markerData[index]?.isDuplicate || false;
     const number = markerData[index]?.id || index + 1;
     
-    let bgColor;
+    let pinColor;
     if (isDuplicate) {
-        bgColor = '#f44336';
+        pinColor = '#f44336';
     } else if (hasPlot) {
-        bgColor = '#ff9800';
+        pinColor = '#ff9800';
     } else {
-        bgColor = '#4CAF50';
+        pinColor = '#4CAF50';
     }
     
-    const MarkerLayout = ymaps.templateLayoutFactory.createClass(
-        `<div style="
-            background: ${bgColor};
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            color: white;
-            cursor: pointer;
-        ">${number}</div>`
-    );
-    
-    markers[index].options.set('iconLayout', MarkerLayout);
+    const pinUrl = getColoredPin(number, pinColor);
+    markers[index].options.set('iconImageHref', pinUrl);
 }
 
 // Обновление суммы квартир
@@ -258,25 +253,8 @@ function selectAll() {
         if (addressData[i].geocodeSuccess && !selectedMarkerIndexes.has(i)) {
             selectedMarkerIndexes.add(i);
             const number = markerData[i]?.id || i + 1;
-            const MarkerLayout = ymaps.templateLayoutFactory.createClass(
-                `<div style="
-                    background: #2196F3;
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 50%;
-                    border: 2px solid white;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-size: 12px;
-                    font-family: Arial, sans-serif;
-                    color: white;
-                    cursor: pointer;
-                ">${number}</div>`
-            );
-            if (markers[i]) markers[i].options.set('iconLayout', MarkerLayout);
+            const pinUrl = getColoredPin(number, '#2196F3');
+            if (markers[i]) markers[i].options.set('iconImageHref', pinUrl);
         }
     }
     updateAddressList();

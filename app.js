@@ -1,4 +1,4 @@
-// app.js - с этажами и подъездами
+// app.js - с условным отображением этажей и подъездов
 
 let map;
 let markers = [];
@@ -181,7 +181,7 @@ function getPinSvg(number, markerColor, isSelected = false) {
 </svg>`;
 }
 
-// Добавление маркера
+// Добавление маркера (с условным отображением этажей/подъездов)
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
@@ -202,12 +202,29 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
+    // Формируем содержимое балуна ТОЛЬКО с теми полями, которые есть
+    let balloonHtml = `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>`;
+    
+    if (floorsCount > 0) {
+        balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
+    }
+    if (entrancesCount > 0) {
+        balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
+    }
+    balloonHtml += duplicateWarning;
+    
+    // Формируем подсказку
+    let hintText = `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount}`;
+    if (floorsCount > 0) hintText += `, эт:${floorsCount}`;
+    if (entrancesCount > 0) hintText += `, п:${entrancesCount}`;
+    hintText += `)${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`;
+    
     const pinSvg = getPinSvg(number, markerColor, false);
     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
     
     const placemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong><br><strong>Этажей: ${floorsCount}</strong><br><strong>Подъездов: ${entrancesCount}</strong>${duplicateWarning}`,
-        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount}, эт:${floorsCount}, п:${entrancesCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+        balloonContent: balloonHtml,
+        hintContent: hintText
     }, {
         iconLayout: 'default#image',
         iconImageHref: pinUrl,
@@ -304,7 +321,7 @@ function deselectAll() {
     updateAptSum();
 }
 
-// Назначить участок
+// Назначить участок (с условным отображением)
 function assignPlotToSelected() {
     if (selectedMarkerIndexes.size === 0) {
         alert('Сначала выберите адреса');
@@ -333,10 +350,27 @@ function assignPlotToSelected() {
             const isDuplicate = data.isDuplicate || false;
             const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
             
+            // Формируем содержимое балуна
+            let balloonHtml = `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong><br><strong>Квартир: ${aptCount}</strong>`;
+            
+            if (floorsCount > 0) {
+                balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
+            }
+            if (entrancesCount > 0) {
+                balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
+            }
+            balloonHtml += duplicateWarning;
+            
+            // Формируем подсказку
+            let hintText = `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}] (кв:${aptCount}`;
+            if (floorsCount > 0) hintText += `, эт:${floorsCount}`;
+            if (entrancesCount > 0) hintText += `, п:${entrancesCount}`;
+            hintText += `)${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`;
+            
             if (markers[index]) {
                 markers[index].properties.set({
-                    balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong><br><strong>Квартир: ${aptCount}</strong><br><strong>Этажей: ${floorsCount}</strong><br><strong>Подъездов: ${entrancesCount}</strong>${duplicateWarning}`,
-                    hintContent: `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}] (кв:${aptCount}, эт:${floorsCount}, п:${entrancesCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+                    balloonContent: balloonHtml,
+                    hintContent: hintText
                 });
             }
             assignedCount++;
@@ -370,7 +404,7 @@ function updateStats() {
     if (dupElement) dupElement.textContent = duplicates;
 }
 
-// Обновление списка адресов
+// Обновление списка адресов (с условным отображением этажей/подъездов)
 function updateAddressList() {
     const addressListDiv = document.getElementById('addressList');
     addressListDiv.innerHTML = '';
@@ -379,7 +413,7 @@ function updateAddressList() {
         if (!item.geocodeSuccess) {
             const div = document.createElement('div');
             div.className = 'address-item error';
-            div.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 8px;"><div style="width: 20px;"></div><div style="flex: 1;"><strong>❌ ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong><br><small>${item.error || 'Не найден'}</small></div></div>`;
+            div.innerHTML = `<div class="flex-row"><div style="width: 20px;"></div><div style="flex: 1;"><strong>❌ ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong><br><small>${item.error || 'Не найден'}</small></div></div>`;
             addressListDiv.appendChild(div);
             return;
         }
@@ -394,18 +428,24 @@ function updateAddressList() {
         const floorsCount = markerInfo?.floors || 0;
         const entrancesCount = markerInfo?.entrances || 0;
         
+        // Формируем строку с параметрами (только если значения > 0)
+        let paramsText = `🏢 Квартир: ${aptCount}`;
+        if (floorsCount > 0) paramsText += ` | 🏗️ Этажей: ${floorsCount}`;
+        if (entrancesCount > 0) paramsText += ` | 🚪 Подъездов: ${entrancesCount}`;
+        paramsText += ` | 📌 Участок: ${markerInfo && markerInfo.plot ? markerInfo.plot : 'не назначен'}`;
+        
         const div = document.createElement('div');
         div.className = `address-item success ${isSelected ? 'selected' : ''}`;
         div.style.borderLeft = isDuplicate ? '3px solid #f44336' : '';
         div.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 8px;">
-                <input type="checkbox" class="address-checkbox" data-index="${index}" ${isSelected ? 'checked' : ''} style="margin-top: 2px;">
-                <div style="flex: 1; cursor: pointer;" class="address-content">
+            <div class="flex-row">
+                <input type="checkbox" class="address-checkbox" data-index="${index}" ${isSelected ? 'checked' : ''}>
+                <div class="address-content">
                     <strong><span style="background: #2196F3; color: white; padding: 0px 6px; border-radius: 12px; font-size: 11px; margin-right: 8px;">${itemNumber}</span> ${item.street}, ${item.house}${item.building ? ` к.${item.building}` : ''}</strong>
                     <span style="color: #ff9800;">${plotText}</span>
                     <span style="color: #f44336; font-weight: bold;">${duplicateText}</span><br>
                     <small>${item.geocodeResult.address.substring(0, 50)}...</small>
-                    <div class="address-plot">🏢 Квартир: ${aptCount} | 🏗️ Этажей: ${floorsCount} | 🚪 Подъездов: ${entrancesCount} | 📌 Участок: ${markerInfo && markerInfo.plot ? markerInfo.plot : 'не назначен'}</div>
+                    <div class="address-plot">${paramsText}</div>
                 </div>
             </div>
         `;
@@ -442,7 +482,7 @@ function clearAll() {
     if (!isRestoringFromURL) window.history.pushState({}, '', window.location.pathname);
 }
 
-// Экспорт в Excel (БЕЗ широты/долготы, С этажами и подъездами)
+// Экспорт в Excel (без широты/долготы, с этажами и подъездами)
 function exportToExcel() {
     const exportData = [['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Количество квартир', 'Количество этажей', 'Количество подъездов', 'Назначенный участок', 'Дубликат']];
     

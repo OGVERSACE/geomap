@@ -138,54 +138,41 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение и сокращение ссылки через clck.ru
+// Получение ссылки через is.gd (работает без CORS)
 async function getMapLink() {
-    if (!mapReady || !map) { 
-        alert('Карта ещё не загружена'); 
-        return; 
+    if (!mapReady || !map) {
+        alert('Карта ещё не загружена');
+        return;
     }
-    
-    // Показываем индикатор загрузки
+
     const loadingDiv = document.getElementById('loading');
     const originalLoadingText = loadingDiv ? loadingDiv.innerHTML : '';
     if (loadingDiv) {
         loadingDiv.style.display = 'block';
-        loadingDiv.innerHTML = '🔗 Сокращение ссылки...<div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>';
+        loadingDiv.innerHTML = '🔗 Сокращение ссылки...';
     }
-    
+
     try {
-        // Сохраняем текущее состояние
         saveStateToURL();
         const longUrl = window.location.href;
-        
-        // Отправляем запрос на clck.ru для сокращения
-        const response = await fetch('https://clck.ru/--', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'url=' + encodeURIComponent(longUrl)
-        });
+
+        // Используем is.gd API (GET-запрос, поддерживает CORS)
+        const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
         
         if (!response.ok) {
             throw new Error('Ошибка сокращения');
         }
         
         const shortUrl = await response.text();
-        
-        // Копируем короткую ссылку в буфер обмена
         await navigator.clipboard.writeText(shortUrl);
-        
-        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}\n\nОна ведёт на текущее состояние карты.`);
+        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}`);
         
     } catch (error) {
         console.error('Ошибка:', error);
-        // Если сокращение не удалось, копируем длинную ссылку
         const longUrl = window.location.href;
         await navigator.clipboard.writeText(longUrl);
-        alert(`⚠️ Не удалось сократить ссылку.\n\nСкопирована длинная ссылка:\n${longUrl}`);
+        alert(`⚠️ Не удалось сократить ссылку.\n\nСкопирована полная ссылка:\n${longUrl}`);
     } finally {
-        // Восстанавливаем индикатор загрузки
         if (loadingDiv) {
             loadingDiv.style.display = 'none';
             loadingDiv.innerHTML = originalLoadingText;

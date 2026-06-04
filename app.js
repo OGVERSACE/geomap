@@ -138,7 +138,7 @@ async function restoreStateFromURL() {
     }
 }
 
-/// Получение ссылки через tinyurl.com (без рекламной страницы)
+// Получение ссылки через is.gd (без промежуточных страниц)
 async function getMapLink() {
     if (!mapReady || !map) {
         alert('Карта ещё не загружена');
@@ -157,20 +157,23 @@ async function getMapLink() {
         saveStateToURL();
         const longUrl = window.location.href;
 
-        // Прямой API tinyurl.com (возвращает только короткую ссылку)
-        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        // is.gd API (format=simple — возвращает только короткую ссылку)
+        const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
         
-        if (!response.ok) throw new Error('Ошибка сокращения');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Ошибка сокращения');
+        }
 
         const shortUrl = await response.text();
         
         // Проверяем, что получили именно ссылку
-        if (!shortUrl.startsWith('http')) {
-            throw new Error('Некорректный ответ от сервера');
+        if (!shortUrl.startsWith('https://is.gd/')) {
+            throw new Error('Некорректный ответ');
         }
         
         await navigator.clipboard.writeText(shortUrl);
-        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}\n\nПри переходе откроется сразу ваша карта.`);
+        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}\n\nПри переходе откроется сразу ваша карта (без рекламы).`);
         
     } catch (error) {
         console.error('Ошибка:', error);

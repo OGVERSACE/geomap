@@ -29,6 +29,36 @@ function initMap() {
         });
         
         map.geoObjects.add(clusterer);
+		
+		// Обработчик клика по кластеру
+clusterer.events.add('click', function (e) {
+    // Получаем объект кластера, по которому кликнули
+    var cluster = e.get('target');
+
+    // Получаем все точки внутри этого кластера
+    var geoObjects = cluster.properties.get('geoObjects');
+
+    // Проходим по каждой точке внутри кластера
+    for (var i = 0; i < geoObjects.length; i++) {
+        var point = geoObjects[i];
+        
+        // Здесь должна быть логика для "выделения" точки.
+        // Например, можно изменить её иконку или добавить её в отдельный массив "выбранных".
+        console.log('Найдена точка в кластере:', point.properties.get('hintContent'));
+
+        // ПРИМЕР: меняем иконку точки на синюю
+        point.options.set('preset', 'islands#blueIcon');
+        
+        // Также можно добавить точку в ваш глобальный массив selectedMarkerIndexes
+        // Но для этого нужно будет найти её индекс в вашем маркерДата
+    }
+    
+    // Дополнительно можно вывести сообщение
+    alert('Выбраны все точки в этом кластере');
+    
+    // Остановить стандартное действие (приближение)
+    e.stopPropagation();
+});
         
         // ПРАВИЛЬНЫЙ ОБРАБОТЧИК КЛИКА ПО КЛАСТЕРУ
         map.events.add('click', function(e) {

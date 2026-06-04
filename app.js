@@ -1,4 +1,4 @@
-// app.js - с исправленным переключением панелей
+// app.js - полностью исправленная версия
 
 let map;
 let markers = [];
@@ -12,7 +12,6 @@ let currentFilterPlot = null;
 // Инициализация карты
 function initMap() {
     ymaps.ready(function() {
-        // БЕЗ typeSelector (кнопка спутник) - только зум и полноэкранный режим
         map = new ymaps.Map('map', {
             center: [55.751244, 37.618423],
             zoom: 10,
@@ -189,7 +188,6 @@ function getPinSvg(number, markerColor, isSelected = false, isHighlighted = fals
 function highlightByPlot(plotNumber) {
     currentFilterPlot = plotNumber;
     
-    // Сначала снимаем все текущие выделения
     for (let index of selectedMarkerIndexes) {
         const marker = markers[index];
         if (marker) {
@@ -211,7 +209,6 @@ function highlightByPlot(plotNumber) {
     }
     selectedMarkerIndexes.clear();
     
-    // Находим и выделяем маркеры с нужным участком
     let foundCount = 0;
     for (let i = 0; i < markerData.length; i++) {
         const marker = markers[i];
@@ -798,38 +795,9 @@ async function processExcelFile(file) {
     }
 }
 
-// ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ПАНЕЛЕЙ
-let panelsVisible = true;
-const rightPanel = document.getElementById('rightPanel');
-const bottomPanel = document.getElementById('bottomPanel');
-const togglePanelsBtn = document.getElementById('togglePanelsBtn');
-
-if (togglePanelsBtn) {
-    togglePanelsBtn.onclick = function() {
-        panelsVisible = !panelsVisible;
-        
-        if (panelsVisible) {
-            rightPanel.classList.remove('hidden');
-            bottomPanel.classList.remove('hidden');
-            togglePanelsBtn.innerHTML = '◀ ▶';
-            togglePanelsBtn.title = 'Скрыть панели';
-        } else {
-            rightPanel.classList.add('hidden');
-            bottomPanel.classList.add('hidden');
-            togglePanelsBtn.innerHTML = '▶ ◀';
-            togglePanelsBtn.title = 'Показать панели';
-        }
-        
-        setTimeout(() => {
-            if (map && map.container) {
-                map.container.fitToViewport();
-            }
-        }, 300);
-    };
-}
-
-// Инициализация кнопок после загрузки страницы
-document.addEventListener('DOMContentLoaded', () => {
+// ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ПАНЕЛЕЙ (ИСПРАВЛЕННОЕ)
+document.addEventListener('DOMContentLoaded', function() {
+    // Сначала инициализируем карту и все кнопки
     initMap();
     
     // Назначаем обработчики кнопок
@@ -880,5 +848,40 @@ document.addEventListener('DOMContentLoaded', () => {
             else alert('Загрузите файл Excel (.xlsx или .xls)');
         };
         fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
+    }
+    
+    // ПЕРЕКЛЮЧЕНИЕ ПАНЕЛЕЙ (КРУГЛАЯ КНОПКА)
+    const rightPanel = document.getElementById('rightPanel');
+    const bottomPanel = document.getElementById('bottomPanel');
+    const togglePanelsBtn = document.getElementById('togglePanelsBtn');
+    let panelsVisible = true;
+    
+    if (togglePanelsBtn && rightPanel && bottomPanel) {
+        togglePanelsBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            panelsVisible = !panelsVisible;
+            
+            if (panelsVisible) {
+                rightPanel.classList.remove('hidden');
+                bottomPanel.classList.remove('hidden');
+                togglePanelsBtn.innerHTML = '◀ ▶';
+                togglePanelsBtn.title = 'Скрыть панели';
+                console.log('Панели показаны');
+            } else {
+                rightPanel.classList.add('hidden');
+                bottomPanel.classList.add('hidden');
+                togglePanelsBtn.innerHTML = '▶ ◀';
+                togglePanelsBtn.title = 'Показать панели';
+                console.log('Панели скрыты');
+            }
+            
+            setTimeout(() => {
+                if (map && map.container) {
+                    map.container.fitToViewport();
+                }
+            }, 300);
+        };
     }
 });

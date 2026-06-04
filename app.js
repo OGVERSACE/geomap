@@ -140,62 +140,31 @@ function getMapLink() {
 }
 
 // Добавление маркера - ВИЗУАЛЬНО КАК РОДНОЙ, но с номером в центре
-function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
-    if (!mapReady || !map) return null;
-    
-    const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
-    const aptCount = markerData[index]?.apartments || 0;
-    
-    // Цвета как у стандартных маркеров Яндекса
-    let bgColor;
-    if (isDuplicate) {
-        bgColor = '#f44336'; // красный
-    } else if (hasPlot) {
-        bgColor = '#ff9800'; // оранжевый
-    } else {
-        bgColor = '#4CAF50'; // зелёный
-    }
-    
-    const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
-    const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
-    
-    // Создаём маркер, визуально НЕОТЛИЧИМЫЙ от родного, но с номером внутри
-    const MarkerLayout = ymaps.templateLayoutFactory.createClass(
-        `<div style="
-            background: ${bgColor};
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.1s;
-        ">${number}</div>`
-    );
-    
-    const placemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>${duplicateWarning}`,
-        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+function addCustomMarker(lat, lon, number, status) {
+    let color;
+
+    if (status === 'duplicate') color = '#F44336';
+    else if (status === 'withPlot') color = '#FF9800';
+    else color = '#4CAF50';
+
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+            <path d="M18 0 C8 0 0 8 0 18 C0 28 18 36 18 36 C18 36 36 28 36 18 C36 8 28 0 18 0 Z"
+                  fill="${color}" stroke="white" stroke-width="2"/>
+            <text x="18" y="23" font-size="16" font-weight="bold"
+                  fill="white" text-anchor="middle" font-family="Arial">${number}</text>
+        </svg>
+    `;
+
+    return new ymaps.Placemark([lat, lon], {
+        balloonContent: `Адрес №${number}`,
+        hintContent: `№${number}`
     }, {
-        iconLayout: MarkerLayout,
-        iconShape: { type: 'Circle', coordinates: [14, 14], radius: 14 },
-        balloonMaxWidth: 350
+         iconLayout: 'default#image',
+		iconImageHref: 'pin.svg',   ← путь к вашему файлу
+		iconImageSize: [36, 36],
+		iconImageOffset: [-18, -36]
     });
-    
-    placemark.events.add('click', () => toggleMarkerSelection(index));
-    
-    map.geoObjects.add(placemark);
-    markers.push(placemark);
-    
-    if (!isRestoringFromURL) saveStateToURL();
-    return placemark;
 }
 
 // Переключение выбора

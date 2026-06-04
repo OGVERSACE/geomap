@@ -1,4 +1,4 @@
-// app.js - полная стабильная версия
+// app.js - с кластеризацией маркеров
 
 let map;
 let markers = [];
@@ -8,8 +8,9 @@ let mapReady = false;
 let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
 let currentFilterPlot = null;
+let clusterer = null; // Кластеризатор
 
-// Инициализация карты
+// Инициализация карты с кластеризацией
 function initMap() {
     ymaps.ready(function() {
         map = new ymaps.Map('map', {
@@ -19,12 +20,42 @@ function initMap() {
         });
         mapReady = true;
         
+        // Создаём кластеризатор
+        clusterer = new ymaps.Clusterer({
+            preset: 'islands#invertedVioletClusterIcons',
+            groupByCoordinates: false,
+            clusterDisableClickZoom: false,
+            clusterOpenBalloonOnClick: true,
+            clusterIconLayout: 'default#imageWithContent',
+            clusterIconContentLayout: ymaps.templateLayoutFactory.createClass(
+                '<div style="' +
+                    'background: #9c27b0;' +
+                    'color: white;' +
+                    'font-weight: bold;' +
+                    'font-size: 14px;' +
+                    'font-family: Arial, sans-serif;' +
+                    'text-align: center;' +
+                    'line-height: 38px;' +
+                    'width: 38px;' +
+                    'height: 38px;' +
+                    'border-radius: 50%;' +
+                    'border: 2px solid white;' +
+                    'box-shadow: 0 2px 8px rgba(0,0,0,0.3);' +
+                    'cursor: pointer;' +
+                '">' +
+                    '{{ properties.geoObjects.length }}' +
+                '</div>'
+            )
+        });
+        
+        map.geoObjects.add(clusterer);
+        
         map.events.add(['boundschange', 'actionend'], function() {
             if (!isRestoringFromURL) saveStateToURL();
         });
         
         restoreStateFromURL();
-        console.log('Карта готова');
+        console.log('Карта готова с кластеризацией');
     });
 }
 
@@ -138,7 +169,7 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение ссылки (простое копирование)
+// Получение ссылки
 async function getMapLink() {
     if (!mapReady || !map) {
         alert('Карта ещё не загружена');
@@ -304,7 +335,7 @@ function clearHighlight() {
     }
 }
 
-// Добавление маркера
+// Добавление маркера (с кластеризацией)
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
@@ -356,7 +387,8 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     
     placemark.events.add('click', () => toggleMarkerSelection(index));
     
-    map.geoObjects.add(placemark);
+    // Добавляем маркер в кластеризатор
+    clusterer.add(placemark);
     markers.push(placemark);
     
     if (!isRestoringFromURL) saveStateToURL();
@@ -589,9 +621,9 @@ function updateAddressList() {
     updateSelectionStats();
 }
 
-// Очистка
+// Очистка всех данных (с учётом кластеризатора)
 function clearAll() {
-    if (map && map.geoObjects) map.geoObjects.removeAll();
+    if (clusterer) clusterer.removeAll();
     markers = [];
     markerData = [];
     addressData = [];

@@ -1,4 +1,4 @@
-// app.js - с РАБОТАЮЩЕЙ кластеризацией и кликами по кластерам
+// app.js - кластеры ВЫДЕЛЯЮТ точки, а не приближают
 
 let map;
 let markers = [];
@@ -20,55 +20,25 @@ function initMap() {
         });
         mapReady = true;
         
-        // Создаём кластеризатор
+        // Создаём кластеризатор (без автоматического приближения)
         clusterer = new ymaps.Clusterer({
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
-            clusterDisableClickZoom: false,
+            clusterDisableClickZoom: true,  // ОТКЛЮЧАЕМ автоматическое приближение
             clusterOpenBalloonOnClick: false
         });
         
-        map.geoObjects.add(clusterer);
-		
-		// Обработчик клика по кластеру
-clusterer.events.add('click', function (e) {
-    // Получаем объект кластера, по которому кликнули
-    var cluster = e.get('target');
-
-    // Получаем все точки внутри этого кластера
-    var geoObjects = cluster.properties.get('geoObjects');
-
-    // Проходим по каждой точке внутри кластера
-    for (var i = 0; i < geoObjects.length; i++) {
-        var point = geoObjects[i];
-        
-        // Здесь должна быть логика для "выделения" точки.
-        // Например, можно изменить её иконку или добавить её в отдельный массив "выбранных".
-        console.log('Найдена точка в кластере:', point.properties.get('hintContent'));
-
-        // ПРИМЕР: меняем иконку точки на синюю
-        point.options.set('preset', 'islands#blueIcon');
-        
-        // Также можно добавить точку в ваш глобальный массив selectedMarkerIndexes
-        // Но для этого нужно будет найти её индекс в вашем маркерДата
-    }
-    
-    // Дополнительно можно вывести сообщение
-    alert('Выбраны все точки в этом кластере');
-    
-    // Остановить стандартное действие (приближение)
-    e.stopPropagation();
-});
-        
-        // ПРАВИЛЬНЫЙ ОБРАБОТЧИК КЛИКА ПО КЛАСТЕРУ
-        map.events.add('click', function(e) {
-            const target = e.get('target');
-            if (!target || !target.properties) return;
+        // ГЛАВНОЕ: обработчик клика по кластеру - ВЫДЕЛЕНИЕ точек
+        clusterer.events.add('click', function(e) {
+            // Получаем кластер, по которому кликнули
+            const cluster = e.get('target');
             
-            const geoObjects = target.properties.get('geoObjects');
+            // Получаем ВСЕ точки внутри этого кластера
+            const geoObjects = cluster.properties.get('geoObjects');
+            
             if (!geoObjects || geoObjects.length === 0) return;
             
-            // Это кластер - выделяем все его точки
+            // Собираем индексы всех точек в кластере
             const indexesToSelect = [];
             for (let i = 0; i < geoObjects.length; i++) {
                 const marker = geoObjects[i];
@@ -80,7 +50,7 @@ clusterer.events.add('click', function (e) {
             
             if (indexesToSelect.length === 0) return;
             
-            // Выделяем все точки из кластера
+            // ВЫДЕЛЯЕМ все точки из кластера (делаем синими)
             for (let idx of indexesToSelect) {
                 if (!selectedMarkerIndexes.has(idx)) {
                     selectedMarkerIndexes.add(idx);
@@ -91,24 +61,30 @@ clusterer.events.add('click', function (e) {
                 }
             }
             
+            // Обновляем интерфейс
             updateAddressList();
             updateSelectionStats();
             updateAptSum();
             
-            // Уведомление
+            // Показываем уведомление
             const msg = document.createElement('div');
-            msg.textContent = `✅ Выбрано ${indexesToSelect.length} адресов`;
+            msg.textContent = `✅ Выбрано ${indexesToSelect.length} адресов из кластера`;
             msg.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#4CAF50; color:white; padding:8px 16px; border-radius:8px; z-index:10000; font-size:14px;';
             document.body.appendChild(msg);
             setTimeout(() => msg.remove(), 2000);
+            
+            // Останавливаем всплытие, чтобы не сработало приближение
+            e.stopPropagation();
         });
+        
+        map.geoObjects.add(clusterer);
         
         map.events.add(['boundschange', 'actionend'], function() {
             if (!isRestoringFromURL) saveStateToURL();
         });
         
         restoreStateFromURL();
-        console.log('Карта готова с кластеризацией');
+        console.log('Карта готова: кластеры ВЫДЕЛЯЮТ точки');
     });
 }
 

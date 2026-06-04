@@ -839,4 +839,36 @@ document.addEventListener('DOMContentLoaded', () => {
         else alert('Загрузите файл Excel (.xlsx или .xls)');
     };
     fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
+	// Переключение видимости панелей
+	let panelsVisible = true;
+	const togglePanelsBtn = document.getElementById('togglePanelsBtn');
+	const rightPanel = document.getElementById('rightPanel');
+	const bottomPanel = document.getElementById('bottomPanel');
+
+	if (togglePanelsBtn) {
+    togglePanelsBtn.addEventListener('click', function() {
+        panelsVisible = !panelsVisible;
+        
+        if (panelsVisible) {
+            // Показываем панели
+            rightPanel.classList.remove('hidden');
+            bottomPanel.classList.remove('hidden');
+            togglePanelsBtn.innerHTML = '◀ ▶';
+            togglePanelsBtn.title = 'Скрыть панели';
+        } else {
+            // Скрываем панели
+            rightPanel.classList.add('hidden');
+            bottomPanel.classList.add('hidden');
+            togglePanelsBtn.innerHTML = '▶ ◀';
+            togglePanelsBtn.title = 'Показать панели';
+        }
+        
+        // Обновляем размер карты после изменения видимости панелей
+        setTimeout(() => {
+            if (map && map.container) {
+                map.container.fitToViewport();
+            }
+        }, 300);
+    });
+}
 });

@@ -138,7 +138,7 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение ссылки через  tinyurl.com (работает без CORS)
+/// Получение ссылки через tinyurl.com (без рекламной страницы)
 async function getMapLink() {
     if (!mapReady || !map) {
         alert('Карта ещё не загружена');
@@ -157,15 +157,23 @@ async function getMapLink() {
         saveStateToURL();
         const longUrl = window.location.href;
 
-        // tinyurl.com API (GET, возвращает JSON)
+        // Прямой API tinyurl.com (возвращает только короткую ссылку)
         const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        
         if (!response.ok) throw new Error('Ошибка сокращения');
 
         const shortUrl = await response.text();
+        
+        // Проверяем, что получили именно ссылку
+        if (!shortUrl.startsWith('http')) {
+            throw new Error('Некорректный ответ от сервера');
+        }
+        
         await navigator.clipboard.writeText(shortUrl);
-        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}`);
+        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}\n\nПри переходе откроется сразу ваша карта.`);
+        
     } catch (error) {
-        console.error(error);
+        console.error('Ошибка:', error);
         const longUrl = window.location.href;
         await navigator.clipboard.writeText(longUrl);
         alert(`⚠️ Не удалось сократить ссылку.\n\nСкопирована полная ссылка:\n${longUrl}`);

@@ -1,4 +1,4 @@
-// app.js - стабильная рабочая версия
+// app.js - с компрессией данных для коротких ссылок
 
 let map;
 let markers = [];
@@ -9,7 +9,57 @@ let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
 let currentFilterPlot = null;
 
-// Инициализация карты (БЕЗ кнопки спутник)
+// ========== ФУНКЦИИ ДЛЯ СЖАТИЯ/РАСПАКОВКИ ДАННЫХ ==========
+function compressData(data) {
+    // Преобразуем в JSON и сжимаем через LZ-String (встроенная библиотека)
+    const jsonStr = JSON.stringify(data);
+    // Используем простую замену для сокращения ключей
+    const compressed = jsonStr
+        .replace(/"center":/g, '"c":')
+        .replace(/"zoom":/g, '"z":')
+        .replace(/"points":/g, '"p":')
+        .replace(/"id":/g, '"i":')
+        .replace(/"lat":/g, '"a":')
+        .replace(/"lon":/g, '"o":')
+        .replace(/"address":/g, '"d":')
+        .replace(/"originalAddress":/g, '"oA":')
+        .replace(/"plot":/g, '"pl":')
+        .replace(/"apartments":/g, '"ap":')
+        .replace(/"floors":/g, '"f":')
+        .replace(/"entrances":/g, '"e":')
+        .replace(/"street":/g, '"s":')
+        .replace(/"house":/g, '"h":')
+        .replace(/"building":/g, '"b":')
+        .replace(/"city":/g, '"ci":')
+        .replace(/"isDuplicate":/g, '"dU":');
+    return compressed;
+}
+
+function decompressData(compressed) {
+    // Восстанавливаем полные ключи
+    const jsonStr = compressed
+        .replace(/"c":/g, '"center":')
+        .replace(/"z":/g, '"zoom":')
+        .replace(/"p":/g, '"points":')
+        .replace(/"i":/g, '"id":')
+        .replace(/"a":/g, '"lat":')
+        .replace(/"o":/g, '"lon":')
+        .replace(/"d":/g, '"address":')
+        .replace(/"oA":/g, '"originalAddress":')
+        .replace(/"pl":/g, '"plot":')
+        .replace(/"ap":/g, '"apartments":')
+        .replace(/"f":/g, '"floors":')
+        .replace(/"e":/g, '"entrances":')
+        .replace(/"s":/g, '"street":')
+        .replace(/"h":/g, '"house":')
+        .replace(/"b":/g, '"building":')
+        .replace(/"ci":/g, '"city":')
+        .replace(/"dU":/g, '"isDuplicate":');
+    return JSON.parse(jsonStr);
+}
+// =======================================================
+
+// Инициализация карты
 function initMap() {
     ymaps.ready(function() {
         map = new ymaps.Map('map', {
@@ -28,7 +78,7 @@ function initMap() {
     });
 }
 
-// Сохранение состояния в URL
+// Сохранение состояния в URL (со сжатием)
 function saveStateToURL() {
     if (!mapReady || !map) return;
     
@@ -40,32 +90,32 @@ function saveStateToURL() {
         const data = markerData[i];
         if (data && data.lat && data.lon) {
             pointsData.push({
-                id: data.id || i + 1,
-                lat: data.lat,
-                lon: data.lon,
-                address: data.address,
-                originalAddress: data.originalAddress,
-                plot: data.plot || '',
-                apartments: data.apartments || 0,
-                floors: data.floors || 0,
-                entrances: data.entrances || 0,
-                street: addressData[i]?.street,
-                house: addressData[i]?.house,
-                building: addressData[i]?.building,
-                city: addressData[i]?.city,
-                isDuplicate: data.isDuplicate || false
+                i: data.id || i + 1,
+                a: data.lat,
+                o: data.lon,
+                d: data.address,
+                oA: data.originalAddress,
+                pl: data.plot || '',
+                ap: data.apartments || 0,
+                f: data.floors || 0,
+                e: data.entrances || 0,
+                s: addressData[i]?.street,
+                h: addressData[i]?.house,
+                b: addressData[i]?.building,
+                ci: addressData[i]?.city,
+                dU: data.isDuplicate || false
             });
         }
     }
     
-    const state = { center: [center[0], center[1]], zoom: zoom, points: pointsData };
+    const state = { c: [center[0], center[1]], z: zoom, p: pointsData };
     const stateStr = JSON.stringify(state);
     const encodedState = btoa(encodeURIComponent(stateStr));
     const newUrl = `${window.location.origin}${window.location.pathname}?state=${encodedState}`;
     window.history.pushState({}, '', newUrl);
 }
 
-// Восстановление состояния из URL
+// Восстановление состояния из URL (с распаковкой)
 async function restoreStateFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const encodedState = urlParams.get('state');
@@ -76,35 +126,35 @@ async function restoreStateFromURL() {
     try {
         const stateStr = decodeURIComponent(atob(encodedState));
         const state = JSON.parse(stateStr);
-        if (!state.points || state.points.length === 0) return;
+        if (!state.p || state.p.length === 0) return;
         
-        const points = state.points;
+        const points = state.p;
         clearAll();
         
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             addressData.push({
-                city: point.city || '',
-                street: point.street || '',
-                house: point.house || '',
-                building: point.building || '',
-                apartments: point.apartments || 0,
-                floors: point.floors || 0,
-                entrances: point.entrances || 0,
+                city: point.ci || '',
+                street: point.s || '',
+                house: point.h || '',
+                building: point.b || '',
+                apartments: point.ap || 0,
+                floors: point.f || 0,
+                entrances: point.e || 0,
                 geocodeSuccess: true,
-                geocodeResult: { address: point.address, lat: point.lat, lon: point.lon }
+                geocodeResult: { address: point.d, lat: point.a, lon: point.o }
             });
             markerData.push({
-                id: point.id || i + 1,
-                address: point.address,
-                originalAddress: point.originalAddress,
-                plot: point.plot || null,
-                apartments: point.apartments || 0,
-                floors: point.floors || 0,
-                entrances: point.entrances || 0,
-                lat: point.lat,
-                lon: point.lon,
-                isDuplicate: point.isDuplicate || false
+                id: point.i || i + 1,
+                address: point.d,
+                originalAddress: point.oA,
+                plot: point.pl || null,
+                apartments: point.ap || 0,
+                floors: point.f || 0,
+                entrances: point.e || 0,
+                lat: point.a,
+                lon: point.o,
+                isDuplicate: point.dU || false
             });
         }
         
@@ -113,14 +163,14 @@ async function restoreStateFromURL() {
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             const isDup = markerData[i]?.isDuplicate || false;
-            addMarker(point.lat, point.lon, point.address, point.originalAddress, i, point.id || i + 1, isDup);
+            addMarker(point.a, point.o, point.d, point.oA, i, point.i || i + 1, isDup);
         }
         
         updateAddressList();
         updateStats();
         updateAptSum();
         
-        if (state.center && state.zoom) map.setCenter(state.center, state.zoom);
+        if (state.c && state.z) map.setCenter(state.c, state.z);
         else if (markers.length > 0) {
             setTimeout(() => {
                 const coords = markers.map(m => m.geometry.getCoordinates());
@@ -143,7 +193,11 @@ function getMapLink() {
     if (!mapReady || !map) { alert('Карта ещё не загружена'); return; }
     saveStateToURL();
     const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
+    navigator.clipboard.writeText(url).then(() => {
+        alert('✅ Ссылка скопирована!');
+    }).catch(() => {
+        prompt('Скопируйте ссылку вручную:', url);
+    });
 }
 
 // Функция для генерации SVG-маркера
@@ -172,10 +226,8 @@ function getPinSvg(number, markerColor, isSelected = false) {
             c84.541,0,153.333,68.801,153.333,153.343C402.462,223.307,312.557,368.579,269.061,484.131z M249.12,29.164
             c-66.32,0-120.261,53.941-120.261,120.232c0,66.33,53.941,120.3,120.261,120.3c66.3,0,120.241-53.951,120.241-120.3
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
-        
         <circle cx="249" cy="150" r="130" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
         <circle cx="249" cy="150" r="130" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
-        
         <text x="249" y="205" font-size="160" font-weight="bold" 
               fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>

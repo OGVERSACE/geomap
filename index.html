@@ -25,20 +25,15 @@
 
         .app {
             display: flex;
+            flex-direction: column;
             height: 100vh;
         }
 
-        /* ЛЕВАЯ ПАНЕЛЬ (УЗКАЯ - 200px) */
-        .left-panel {
-            width: 200px;
-            background: white;
-            padding: 12px;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.08);
-            z-index: 10;
+        /* ОСНОВНАЯ ОБЛАСТЬ (КАРТА + ПРАВАЯ ПАНЕЛЬ) */
+        .main-area {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
+            flex: 1;
+            overflow: hidden;
         }
 
         /* ЦЕНТРАЛЬНАЯ ЧАСТЬ (КАРТА) */
@@ -65,15 +60,48 @@
             overflow-y: auto;
         }
 
+        /* НИЖНЯЯ ПАНЕЛЬ (МЕНЮ) */
+        .bottom-panel {
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+            z-index: 20;
+            padding: 10px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        /* ЛЕВАЯ ЧАСТЬ НИЖНЕЙ ПАНЕЛИ (ЗАГРУЗКА + СТАТИСТИКА) */
+        .bottom-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* ПРАВАЯ ЧАСТЬ НИЖНЕЙ ПАНЕЛИ (УЧАСТОК + КНОПКИ) */
+        .bottom-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
         /* ОБЩИЕ СТИЛИ */
         .upload-area {
             border: 2px dashed #ccc;
             border-radius: 6px;
-            padding: 10px;
+            padding: 6px 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 11px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .upload-area:hover {
@@ -87,8 +115,7 @@
         }
 
         button {
-            padding: 6px 10px;
-            margin: 2px 0;
+            padding: 6px 12px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -123,29 +150,73 @@
 
         .stats {
             background: #f5f5f5;
-            padding: 8px;
+            padding: 4px 10px;
             border-radius: 6px;
             font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-            margin-top: 6px;
+        .stats-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .stat-card {
-            background: white;
-            padding: 4px;
-            border-radius: 5px;
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 16px;
+        .stats-number {
             font-weight: bold;
             color: #2196F3;
+            font-size: 14px;
+        }
+
+        .plot-selector {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f5f5f5;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .plot-selector input {
+            width: 100px;
+            padding: 5px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .plot-selector label {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .current-selection {
+            font-size: 12px;
+            color: #666;
+            background: #e8f5e9;
+            padding: 4px 10px;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .apt-summary {
+            background: #e3f2fd;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .apt-summary span {
+            color: #2196F3;
+            font-size: 14px;
         }
 
         .address-list {
@@ -154,7 +225,6 @@
             border: 1px solid #eee;
             border-radius: 6px;
             background: #fafafa;
-            max-height: calc(100vh - 150px);
         }
 
         .address-item {
@@ -190,19 +260,24 @@
         .loading {
             display: none;
             text-align: center;
-            padding: 8px;
+            padding: 6px 12px;
             background: #fff3cd;
             border-radius: 5px;
             font-size: 11px;
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
         }
 
         .progress-bar {
-            width: 100%;
+            width: 200px;
             height: 12px;
             background: #e0e0e0;
             border-radius: 6px;
             overflow: hidden;
-            margin: 6px 0;
+            margin: 4px 0;
         }
 
         .progress-fill {
@@ -212,54 +287,9 @@
             width: 0%;
         }
 
-        .plot-selector {
-            background: #f5f5f5;
-            padding: 8px;
-            border-radius: 6px;
-        }
-
-        .plot-selector input {
-            width: 100%;
-            padding: 6px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 12px;
-            box-sizing: border-box;
-        }
-
-        .plot-selector label {
-            font-weight: 600;
-            font-size: 11px;
-        }
-
-        .current-selection {
-            font-size: 11px;
-            color: #666;
-            margin-top: 6px;
-            padding: 5px;
-            background: #e8f5e9;
-            border-radius: 5px;
-        }
-
-        .apt-summary {
-            background: #e3f2fd;
-            padding: 6px;
-            border-radius: 5px;
-            margin-top: 6px;
-            font-size: 11px;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .apt-summary span {
-            color: #2196F3;
-            font-size: 14px;
-        }
-
         h2 {
-            font-size: 16px;
-            margin-bottom: 4px;
+            font-size: 14px;
+            margin: 0;
         }
 
         h3 {
@@ -268,24 +298,8 @@
             font-weight: 600;
         }
 
-        hr {
-            margin: 8px 0;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-
-        .button-group button {
-            flex: 1;
-            min-width: 60px;
-            font-size: 11px;
-        }
-
         .small-text {
-            font-size: 9px;
+            font-size: 10px;
             color: #666;
         }
         
@@ -316,97 +330,93 @@
         }
 
         .list-actions button {
-            padding: 3px 6px;
+            padding: 3px 8px;
             font-size: 10px;
         }
 
         .flex-row {
             display: flex;
-            align-items: flex-start;
-            gap: 6px;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .separator {
+            width: 1px;
+            height: 30px;
+            background: #ddd;
         }
     </style>
 </head>
 <body>
     <div class="app">
-        <!-- ЛЕВАЯ ПАНЕЛЬ (200px) -->
-        <div class="left-panel">
-            <h2>🗺️ GeoMap</h2>
-            <p class="small-text">Загрузка адресов</p>
-            
-            <div class="upload-area" id="uploadArea">
-                📁 Нажмите или перетащите<br>файл Excel
-                <small>(.xlsx, .xls)</small>
-            </div>
-            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
-            
-            <div class="loading" id="loading">
-                ⏳ Обработка...<br>
-                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-                <span id="progressText">0/0</span>
+        <!-- ОСНОВНАЯ ОБЛАСТЬ (КАРТА + ПРАВАЯ ПАНЕЛЬ) -->
+        <div class="main-area">
+            <!-- КАРТА -->
+            <div class="map-container">
+                <div id="map"></div>
             </div>
             
-            <div class="plot-selector">
-                <label>🎯 Участок выбранным:</label>
-                <input type="text" id="plotInput" placeholder="Номер участка">
-                <button class="btn-primary" id="assignPlotBtn" style="width: 100%;">📌 Назначить</button>
+            <!-- ПРАВАЯ ПАНЕЛЬ (СПИСОК АДРЕСОВ) -->
+            <div class="right-panel">
+                <div class="list-header">
+                    <h3>📋 Список адресов</h3>
+                    <div class="list-actions">
+                        <button class="btn-secondary" id="selectAllBtn">✅ Все</button>
+                        <button class="btn-warning" id="deselectAllBtn">⬜ Снять</button>
+                    </div>
+                </div>
+                <div class="address-list" id="addressList"></div>
+                <div class="small-text" style="margin-top: 6px; text-align: center;">
+                    💡 Клик по адресу — центрирование
+                </div>
+            </div>
+        </div>
+        
+        <!-- НИЖНЯЯ ПАНЕЛЬ (ВСЕ ЭЛЕМЕНТЫ УПРАВЛЕНИЯ) -->
+        <div class="bottom-panel">
+            <div class="bottom-left">
+                <h2>🗺️ GeoMap</h2>
+                <div class="upload-area" id="uploadArea">
+                    📁 Загрузить Excel
+                </div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                
+                <div class="stats" id="stats">
+                    <div class="stats-item">📊 Всего: <span class="stats-number" id="totalCount">0</span></div>
+                    <div class="stats-item">📍 На карте: <span class="stats-number" id="mapCount">0</span></div>
+                    <div class="stats-item">🏷️ С участком: <span class="stats-number" id="assignedCount">0</span></div>
+                    <div class="stats-item">⚠️ Дубл.: <span class="stats-number" id="duplicateCount" style="color:#f44336;">0</span></div>
+                </div>
+            </div>
+            
+            <div class="bottom-right">
+                <div class="plot-selector">
+                    <label>🎯 Участок:</label>
+                    <input type="text" id="plotInput" placeholder="Номер">
+                    <button class="btn-primary" id="assignPlotBtn">📌 Назначить</button>
+                </div>
                 
                 <div class="apt-summary" id="aptSummary">
-                    📊 Сумма квартир: <span id="selectedAptSum">0</span>
+                    🏢 Сумма квартир: <span id="selectedAptSum">0</span>
                 </div>
                 
                 <div class="current-selection" id="currentSelection">
-                    📌 Выбрано: <span id="selectedCount">0</span>
+                    ✅ Выбрано: <span id="selectedCount">0</span>
                 </div>
-            </div>
-            
-            <div class="button-group">
-                <button class="btn-purple" id="getLinkBtn">🔗 Ссылка</button>
-                <button class="btn-secondary" id="exportExcelBtn">📎 Excel</button>
-            </div>
-            
-            <div class="stats" id="stats">
-                <strong>📊 Статистика:</strong>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div>Всего</div>
-                        <div class="stat-number" id="totalCount">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div>На карте</div>
-                        <div class="stat-number" id="mapCount">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div>С участком</div>
-                        <div class="stat-number" id="assignedCount">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div>⚠️ Дубл.</div>
-                        <div class="stat-number" id="duplicateCount" style="color: #f44336;">0</div>
-                    </div>
-                </div>
+                
+                <div class="separator"></div>
+                
+                <button class="btn-purple" id="getLinkBtn">🔗 Получить ссылку</button>
+                <button class="btn-secondary" id="exportExcelBtn">📎 Выгрузить Excel</button>
             </div>
         </div>
-        
-        <!-- ЦЕНТРАЛЬНАЯ ЧАСТЬ (КАРТА) -->
-        <div class="map-container">
-            <div id="map"></div>
-        </div>
-        
-        <!-- ПРАВАЯ ПАНЕЛЬ (СПИСОК АДРЕСОВ - 260px) -->
-        <div class="right-panel">
-            <div class="list-header">
-                <h3>📋 Адреса</h3>
-                <div class="list-actions">
-                    <button class="btn-secondary" id="selectAllBtn">✅ Все</button>
-                    <button class="btn-warning" id="deselectAllBtn">⬜ Снять</button>
-                </div>
-            </div>
-            <div class="address-list" id="addressList"></div>
-            <div class="small-text" style="margin-top: 6px; text-align: center;">
-                💡 Клик по адресу — центрирование
-            </div>
-        </div>
+    </div>
+    
+    <!-- ПРОГРЕСС-БАР (ПЛАВАЮЩИЙ) -->
+    <div class="loading" id="loading">
+        ⏳ Обработка адресов...<br>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <span id="progressText">0/0</span>
     </div>
     
     <script src="geocoder.js"></script>

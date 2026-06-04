@@ -1,4 +1,4 @@
-// app.js - с компрессией данных для коротких ссылок
+// app.js - с автоматическим сокращением ссылок через clck.ru
 
 let map;
 let markers = [];
@@ -8,56 +8,6 @@ let mapReady = false;
 let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
 let currentFilterPlot = null;
-
-// ========== ФУНКЦИИ ДЛЯ СЖАТИЯ/РАСПАКОВКИ ДАННЫХ ==========
-function compressData(data) {
-    // Преобразуем в JSON и сжимаем через LZ-String (встроенная библиотека)
-    const jsonStr = JSON.stringify(data);
-    // Используем простую замену для сокращения ключей
-    const compressed = jsonStr
-        .replace(/"center":/g, '"c":')
-        .replace(/"zoom":/g, '"z":')
-        .replace(/"points":/g, '"p":')
-        .replace(/"id":/g, '"i":')
-        .replace(/"lat":/g, '"a":')
-        .replace(/"lon":/g, '"o":')
-        .replace(/"address":/g, '"d":')
-        .replace(/"originalAddress":/g, '"oA":')
-        .replace(/"plot":/g, '"pl":')
-        .replace(/"apartments":/g, '"ap":')
-        .replace(/"floors":/g, '"f":')
-        .replace(/"entrances":/g, '"e":')
-        .replace(/"street":/g, '"s":')
-        .replace(/"house":/g, '"h":')
-        .replace(/"building":/g, '"b":')
-        .replace(/"city":/g, '"ci":')
-        .replace(/"isDuplicate":/g, '"dU":');
-    return compressed;
-}
-
-function decompressData(compressed) {
-    // Восстанавливаем полные ключи
-    const jsonStr = compressed
-        .replace(/"c":/g, '"center":')
-        .replace(/"z":/g, '"zoom":')
-        .replace(/"p":/g, '"points":')
-        .replace(/"i":/g, '"id":')
-        .replace(/"a":/g, '"lat":')
-        .replace(/"o":/g, '"lon":')
-        .replace(/"d":/g, '"address":')
-        .replace(/"oA":/g, '"originalAddress":')
-        .replace(/"pl":/g, '"plot":')
-        .replace(/"ap":/g, '"apartments":')
-        .replace(/"f":/g, '"floors":')
-        .replace(/"e":/g, '"entrances":')
-        .replace(/"s":/g, '"street":')
-        .replace(/"h":/g, '"house":')
-        .replace(/"b":/g, '"building":')
-        .replace(/"ci":/g, '"city":')
-        .replace(/"dU":/g, '"isDuplicate":');
-    return JSON.parse(jsonStr);
-}
-// =======================================================
 
 // Инициализация карты
 function initMap() {
@@ -115,7 +65,7 @@ function saveStateToURL() {
     window.history.pushState({}, '', newUrl);
 }
 
-// Восстановление состояния из URL (с распаковкой)
+// Восстановление состояния из URL
 async function restoreStateFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const encodedState = urlParams.get('state');
@@ -188,16 +138,59 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение ссылки
-function getMapLink() {
-    if (!mapReady || !map) { alert('Карта ещё не загружена'); return; }
-    saveStateToURL();
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-        alert('✅ Ссылка скопирована!');
-    }).catch(() => {
-        prompt('Скопируйте ссылку вручную:', url);
-    });
+// Получение и сокращение ссылки через clck.ru
+async function getMapLink() {
+    if (!mapReady || !map) { 
+        alert('Карта ещё не загружена'); 
+        return; 
+    }
+    
+    // Показываем индикатор загрузки
+    const loadingDiv = document.getElementById('loading');
+    const originalLoadingText = loadingDiv ? loadingDiv.innerHTML : '';
+    if (loadingDiv) {
+        loadingDiv.style.display = 'block';
+        loadingDiv.innerHTML = '🔗 Сокращение ссылки...<div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>';
+    }
+    
+    try {
+        // Сохраняем текущее состояние
+        saveStateToURL();
+        const longUrl = window.location.href;
+        
+        // Отправляем запрос на clck.ru для сокращения
+        const response = await fetch('https://clck.ru/--', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'url=' + encodeURIComponent(longUrl)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка сокращения');
+        }
+        
+        const shortUrl = await response.text();
+        
+        // Копируем короткую ссылку в буфер обмена
+        await navigator.clipboard.writeText(shortUrl);
+        
+        alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}\n\nОна ведёт на текущее состояние карты.`);
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        // Если сокращение не удалось, копируем длинную ссылку
+        const longUrl = window.location.href;
+        await navigator.clipboard.writeText(longUrl);
+        alert(`⚠️ Не удалось сократить ссылку.\n\nСкопирована длинная ссылка:\n${longUrl}`);
+    } finally {
+        // Восстанавливаем индикатор загрузки
+        if (loadingDiv) {
+            loadingDiv.style.display = 'none';
+            loadingDiv.innerHTML = originalLoadingText;
+        }
+    }
 }
 
 // Функция для генерации SVG-маркера

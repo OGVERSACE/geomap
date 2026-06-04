@@ -1,4 +1,4 @@
-// app.js - с ВАШИМ дизайном маркера и номером в белом кружке
+// app.js - с этажами и подъездами
 
 let map;
 let markers = [];
@@ -46,6 +46,8 @@ function saveStateToURL() {
                 originalAddress: data.originalAddress,
                 plot: data.plot || '',
                 apartments: data.apartments || 0,
+                floors: data.floors || 0,
+                entrances: data.entrances || 0,
                 street: addressData[i]?.street,
                 house: addressData[i]?.house,
                 building: addressData[i]?.building,
@@ -86,6 +88,8 @@ async function restoreStateFromURL() {
                 house: point.house || '',
                 building: point.building || '',
                 apartments: point.apartments || 0,
+                floors: point.floors || 0,
+                entrances: point.entrances || 0,
                 geocodeSuccess: true,
                 geocodeResult: { address: point.address, lat: point.lat, lon: point.lon }
             });
@@ -95,6 +99,8 @@ async function restoreStateFromURL() {
                 originalAddress: point.originalAddress,
                 plot: point.plot || null,
                 apartments: point.apartments || 0,
+                floors: point.floors || 0,
+                entrances: point.entrances || 0,
                 lat: point.lat,
                 lon: point.lon,
                 isDuplicate: point.isDuplicate || false
@@ -139,10 +145,8 @@ function getMapLink() {
     navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
 }
 
-// Функция для генерации SVG-маркера (ВАШ ДИЗАЙН + белый кружок с чёрным номером)
-// Функция для генерации SVG-маркера (УВЕЛИЧЕННЫЙ кружок с номером)
+// Функция для генерации SVG-маркера
 function getPinSvg(number, markerColor, isSelected = false) {
-    // Цвет маркера (капля)
     let fillColor;
     switch(markerColor) {
         case 'green': fillColor = '#4CAF50'; break;
@@ -152,7 +156,6 @@ function getPinSvg(number, markerColor, isSelected = false) {
         default: fillColor = '#4CAF50';
     }
     
-    // Эффект тени для выделенного маркера
     const shadowFilter = isSelected ? 
         '<filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#2196F3" flood-opacity="0.8"/></filter>' : 
         '<filter id="shadow"><feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.4"/></filter>';
@@ -163,34 +166,30 @@ function getPinSvg(number, markerColor, isSelected = false) {
         ${shadowFilter}
     </defs>
     <g filter="url(#shadow)">
-        <!-- Ваш оригинальный маркер-капля -->
         <path fill="${fillColor}" d="M269.061,484.131c-3.185,8.461-11.255,14.049-20.273,14.089
             c-9.028,0.029-17.147-5.501-20.39-13.913c-44.034-114.321-132.63-261.205-132.63-330.964C95.767,68.801,164.539,0,249.12,0
             c84.541,0,153.333,68.801,153.333,153.343C402.462,223.307,312.557,368.579,269.061,484.131z M249.12,29.164
             c-66.32,0-120.261,53.941-120.261,120.232c0,66.33,53.941,120.3,120.261,120.3c66.3,0,120.241-53.951,120.241-120.3
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
         
-        <!-- БОЛЬШОЙ белый кружок для номера -->
         <circle cx="249" cy="150" r="130" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
+        <circle cx="249" cy="150" r="130" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
         
-        <!-- Дополнительная внутренняя тень для объёма -->
-        <circle cx="249" cy="150" r="131" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
-        
-        <!-- КРУПНЫЙ чёрный номер -->
         <text x="249" y="205" font-size="160" font-weight="bold" 
               fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
 </svg>`;
 }
 
-// Добавление маркера с ВАШИМ ДИЗАЙНОМ
+// Добавление маркера
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const aptCount = markerData[index]?.apartments || 0;
+    const floorsCount = markerData[index]?.floors || 0;
+    const entrancesCount = markerData[index]?.entrances || 0;
     
-    // Определяем цвет маркера
     let markerColor;
     if (isDuplicate) {
         markerColor = 'red';
@@ -203,18 +202,17 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
-    // Генерируем SVG с номером
     const pinSvg = getPinSvg(number, markerColor, false);
     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
     
     const placemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>${duplicateWarning}`,
-        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+        balloonContent: `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong><br><strong>Этажей: ${floorsCount}</strong><br><strong>Подъездов: ${entrancesCount}</strong>${duplicateWarning}`,
+        hintContent: `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount}, эт:${floorsCount}, п:${entrancesCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
     }, {
         iconLayout: 'default#image',
         iconImageHref: pinUrl,
-        iconImageSize: [50, 50],
-        iconImageOffset: [-25, -50],
+        iconImageSize: [55, 55],
+        iconImageOffset: [-27, -55],
         balloonMaxWidth: 350
     });
     
@@ -330,13 +328,15 @@ function assignPlotToSelected() {
             
             const data = markerData[index];
             const aptCount = data.apartments || 0;
+            const floorsCount = data.floors || 0;
+            const entrancesCount = data.entrances || 0;
             const isDuplicate = data.isDuplicate || false;
             const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
             
             if (markers[index]) {
                 markers[index].properties.set({
-                    balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong><br><strong>Квартир: ${aptCount}</strong>${duplicateWarning}`,
-                    hintContent: `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}] (кв:${aptCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
+                    balloonContent: `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong><br><strong>Квартир: ${aptCount}</strong><br><strong>Этажей: ${floorsCount}</strong><br><strong>Подъездов: ${entrancesCount}</strong>${duplicateWarning}`,
+                    hintContent: `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}] (кв:${aptCount}, эт:${floorsCount}, п:${entrancesCount})${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`
                 });
             }
             assignedCount++;
@@ -391,6 +391,8 @@ function updateAddressList() {
         const duplicateText = isDuplicate ? ' ⚠️ ДУБЛИКАТ' : '';
         const itemNumber = markerInfo?.id || index + 1;
         const aptCount = markerInfo?.apartments || 0;
+        const floorsCount = markerInfo?.floors || 0;
+        const entrancesCount = markerInfo?.entrances || 0;
         
         const div = document.createElement('div');
         div.className = `address-item success ${isSelected ? 'selected' : ''}`;
@@ -403,7 +405,7 @@ function updateAddressList() {
                     <span style="color: #ff9800;">${plotText}</span>
                     <span style="color: #f44336; font-weight: bold;">${duplicateText}</span><br>
                     <small>${item.geocodeResult.address.substring(0, 50)}...</small>
-                    <div class="address-plot">🏢 Квартир: ${aptCount} | 📌 Участок: ${markerInfo && markerInfo.plot ? markerInfo.plot : 'не назначен'}</div>
+                    <div class="address-plot">🏢 Квартир: ${aptCount} | 🏗️ Этажей: ${floorsCount} | 🚪 Подъездов: ${entrancesCount} | 📌 Участок: ${markerInfo && markerInfo.plot ? markerInfo.plot : 'не назначен'}</div>
                 </div>
             </div>
         `;
@@ -440,9 +442,9 @@ function clearAll() {
     if (!isRestoringFromURL) window.history.pushState({}, '', window.location.pathname);
 }
 
-// Экспорт в Excel
+// Экспорт в Excel (БЕЗ широты/долготы, С этажами и подъездами)
 function exportToExcel() {
-    const exportData = [['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Широта', 'Долгота', 'Количество квартир', 'Назначенный участок', 'Дубликат']];
+    const exportData = [['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Количество квартир', 'Количество этажей', 'Количество подъездов', 'Назначенный участок', 'Дубликат']];
     
     addressData.forEach((item, index) => {
         const markerInfo = markerData[index];
@@ -450,19 +452,23 @@ function exportToExcel() {
         if (item.geocodeSuccess) {
             exportData.push([
                 number, 'Найден', item.city || '', item.street, item.house, item.building || '',
-                item.geocodeResult.address, item.geocodeResult.lat, item.geocodeResult.lon,
-                markerInfo?.apartments || 0, markerInfo?.plot || '', markerInfo?.isDuplicate ? 'Да' : ''
+                item.geocodeResult.address,
+                markerInfo?.apartments || 0,
+                markerInfo?.floors || 0,
+                markerInfo?.entrances || 0,
+                markerInfo?.plot || '',
+                markerInfo?.isDuplicate ? 'Да' : ''
             ]);
         } else {
-            exportData.push([number, 'Не найден', item.city || '', item.street, item.house, item.building || '', '', '', '', item.apartments || 0, '', '']);
+            exportData.push([number, 'Не найден', item.city || '', item.street, item.house, item.building || '', '', item.apartments || 0, item.floors || 0, item.entrances || 0, '', '']);
         }
     });
     
     const ws = XLSX.utils.aoa_to_sheet(exportData);
-    ws['!cols'] = [{wch:5},{wch:10},{wch:15},{wch:25},{wch:12},{wch:10},{wch:50},{wch:15},{wch:15},{wch:12},{wch:20},{wch:10}];
+    ws['!cols'] = [{wch:5},{wch:10},{wch:15},{wch:25},{wch:12},{wch:10},{wch:50},{wch:12},{wch:15},{wch:15},{wch:20},{wch:10}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Адреса с участками');
-    XLSX.writeFile(wb, `участки_квартиры_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
+    XLSX.writeFile(wb, `участки_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.xlsx`);
     alert(`Экспортировано ${exportData.length - 1} адресов`);
 }
 
@@ -483,7 +489,9 @@ async function processExcelFile(file) {
         if (rows.length < 2) throw new Error('Файл должен содержать заголовки и данные');
         
         const headers = rows[0];
-        let cityCol = -1, streetCol = -1, houseCol = -1, buildingCol = -1, apartmentsCol = -1;
+        let cityCol = -1, streetCol = -1, houseCol = -1, buildingCol = -1;
+        let apartmentsCol = -1, floorsCol = -1, entrancesCol = -1;
+        
         headers.forEach((header, idx) => {
             const h = String(header).toLowerCase();
             if (h.includes('город') || h === 'city') cityCol = idx;
@@ -491,6 +499,8 @@ async function processExcelFile(file) {
             if (h.includes('дом') || h === 'house') houseCol = idx;
             if (h.includes('корп') || h === 'building') buildingCol = idx;
             if (h.includes('квартир') || h === 'apartments' || h.includes('кв')) apartmentsCol = idx;
+            if (h.includes('этаж') || h === 'floors') floorsCol = idx;
+            if (h.includes('подъезд') || h === 'entrances') entrancesCol = idx;
         });
         if (streetCol === -1 || houseCol === -1) throw new Error('Не найдены колонки "улица" и/или "дом"');
         
@@ -498,9 +508,15 @@ async function processExcelFile(file) {
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (row.length > 0 && row[streetCol]) {
-                let apartments = 0;
+                let apartments = 0, floors = 0, entrances = 0;
                 if (apartmentsCol !== -1 && row[apartmentsCol]) {
                     apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
+                }
+                if (floorsCol !== -1 && row[floorsCol]) {
+                    floors = parseInt(String(row[floorsCol]).replace(/[^\d]/g, '')) || 0;
+                }
+                if (entrancesCol !== -1 && row[entrancesCol]) {
+                    entrances = parseInt(String(row[entrancesCol]).replace(/[^\d]/g, '')) || 0;
                 }
                 addresses.push({
                     id: i,
@@ -508,7 +524,9 @@ async function processExcelFile(file) {
                     street: String(row[streetCol] || '').trim(),
                     house: String(row[houseCol] || '').trim(),
                     building: buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '',
-                    apartments: apartments
+                    apartments: apartments,
+                    floors: floors,
+                    entrances: entrances
                 });
             }
         }
@@ -532,6 +550,8 @@ async function processExcelFile(file) {
                         originalAddress: originalAddress,
                         plot: null,
                         apartments: addr.apartments,
+                        floors: addr.floors,
+                        entrances: addr.entrances,
                         lat: result.lat,
                         lon: result.lon,
                         isDuplicate: false

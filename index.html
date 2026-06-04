@@ -89,7 +89,23 @@
         .address-checkbox { margin-right: 8px; transform: scale(0.9); }
         .flex-row { display: flex; align-items: flex-start; gap: 8px; }
         .address-content { flex: 1; }
-        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        
+        /* КНОПКИ В ЗАГОЛОВКЕ СПИСКА - ГОРИЗОНТАЛЬНО */
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .list-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .list-actions button {
+            padding: 4px 12px;
+            font-size: 11px;
+        }
+        
         .separator { width: 1px; height: 30px; background: #ddd; }
     </style>
 </head>
@@ -100,7 +116,10 @@
         <div class="right-panel" id="rightPanel">
             <div class="list-header">
                 <h3>📋 Список адресов</h3>
-                <div><button class="btn-secondary" id="selectAllBtn">✅ Все</button> <button class="btn-warning" id="deselectAllBtn">⬜ Снять</button></div>
+                <div class="list-actions">
+                    <button class="btn-secondary" id="selectAllBtn">✅ Все</button>
+                    <button class="btn-warning" id="deselectAllBtn">⬜ Снять</button>
+                </div>
             </div>
             <div class="address-list" id="addressList"></div>
             <div class="small-text" style="text-align:center;">💡 Клик по адресу — центрирование</div>

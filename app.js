@@ -171,13 +171,13 @@ function getPinSvg(number, markerColor, isSelected = false) {
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
         
         <!-- БОЛЬШОЙ белый кружок для номера -->
-        <circle cx="249" cy="165" r="55" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
+        <circle cx="249" cy="165" r="100" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
         
         <!-- Дополнительная внутренняя тень для объёма -->
-        <circle cx="249" cy="165" r="55" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
+        <circle cx="249" cy="165" r="100" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
         
         <!-- КРУПНЫЙ чёрный номер -->
-        <text x="249" y="182" font-size="52" font-weight="bold" 
+        <text x="249" y="182" font-size="98" font-weight="bold" 
               fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
 </svg>`;

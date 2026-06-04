@@ -628,12 +628,11 @@ async function processExcelFile(file) {
     }
 }
 
-// Инициализация
+// Инициализация (исправленная - без clearMarkersBtn)
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     document.getElementById('assignPlotBtn').onclick = assignPlotToSelected;
     document.getElementById('exportExcelBtn').onclick = exportToExcel;
-    document.getElementById('clearMarkersBtn').onclick = clearAll;
     document.getElementById('selectAllBtn').onclick = selectAll;
     document.getElementById('deselectAllBtn').onclick = deselectAll;
     document.getElementById('getLinkBtn').onclick = getMapLink;

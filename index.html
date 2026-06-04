@@ -63,9 +63,7 @@
         }
 
         .right-panel.hidden {
-            width: 0;
-            padding: 0;
-            overflow: hidden;
+            display: none;
         }
 
         /* НИЖНЯЯ ПАНЕЛЬ (МЕНЮ) */
@@ -84,10 +82,7 @@
         }
 
         .bottom-panel.hidden {
-            transform: translateY(100%);
-            padding: 0;
-            height: 0;
-            overflow: hidden;
+            display: none;
         }
 
         .bottom-left {
@@ -104,12 +99,17 @@
             flex-wrap: wrap;
         }
 
-        /* КНОПКА ПЕРЕКЛЮЧЕНИЯ ПАНЕЛЕЙ */
-        .toggle-panels-btn {
+        /* КНОПКИ УПРАВЛЕНИЯ ПАНЕЛЯМИ */
+        .panel-controls {
             position: fixed;
             bottom: 20px;
             right: 20px;
             z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+
+        .panel-btn {
             background: #2196F3;
             color: white;
             border: none;
@@ -125,9 +125,16 @@
             justify-content: center;
         }
 
-        .toggle-panels-btn:hover {
+        .panel-btn:hover {
             background: #0b7dda;
             transform: scale(1.05);
+        }
+
+        .panel-btn.red {
+            background: #f44336;
+        }
+        .panel-btn.red:hover {
+            background: #da190b;
         }
 
         .upload-area {
@@ -489,8 +496,12 @@
         </div>
     </div>
     
-    <!-- КНОПКА ПЕРЕКЛЮЧЕНИЯ ПАНЕЛЕЙ -->
-    <button class="toggle-panels-btn" id="togglePanelsBtn" title="Скрыть/показать панели">◀ ▶</button>
+    <!-- КНОПКИ УПРАВЛЕНИЯ ПАНЕЛЯМИ -->
+    <div class="panel-controls">
+        <button class="panel-btn" id="toggleBottomPanelBtn" title="Показать/скрыть нижнюю панель">▲ ▼</button>
+        <button class="panel-btn" id="toggleRightPanelBtn" title="Показать/скрыть список адресов">◀ ▶</button>
+        <button class="panel-btn red" id="showAllPanelsBtn" title="Показать все панели">☰</button>
+    </div>
     
     <div class="loading" id="loading">
         ⏳ Обработка адресов...<br>

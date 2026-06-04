@@ -1,4 +1,4 @@
-// app.js - с кластеризацией маркеров
+// app.js - с кластеризацией и выделением адресов при клике на кластер
 
 let map;
 let markers = [];
@@ -8,9 +8,9 @@ let mapReady = false;
 let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
 let currentFilterPlot = null;
-let clusterer = null; // Кластеризатор
+let clusterer = null;
 
-// Инициализация карты с кластеризацией
+// Инициализация карты
 function initMap() {
     ymaps.ready(function() {
         map = new ymaps.Map('map', {
@@ -25,7 +25,7 @@ function initMap() {
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
             clusterDisableClickZoom: false,
-            clusterOpenBalloonOnClick: true,
+            clusterOpenBalloonOnClick: false, // Отключаем стандартный балун
             clusterIconLayout: 'default#imageWithContent',
             clusterIconContentLayout: ymaps.templateLayoutFactory.createClass(
                 '<div style="' +
@@ -48,6 +48,44 @@ function initMap() {
             )
         });
         
+        // ОБРАБОТЧИК КЛИКА ПО КЛАСТЕРУ - ВЫДЕЛЕНИЕ ВСЕХ АДРЕСОВ ВНУТРИ
+        clusterer.events.add('click', function(e) {
+            const cluster = e.get('target');
+            const geoObjects = cluster.properties.geoObjects;
+            
+            // Собираем индексы всех точек в кластере
+            const indexesToSelect = [];
+            for (let i = 0; i < geoObjects.length; i++) {
+                const marker = geoObjects[i];
+                const markerIndex = marker.properties.get('markerIndex');
+                if (markerIndex !== undefined && addressData[markerIndex] && addressData[markerIndex].geocodeSuccess) {
+                    indexesToSelect.push(markerIndex);
+                }
+            }
+            
+            // Выделяем все точки из кластера
+            for (let idx of indexesToSelect) {
+                if (!selectedMarkerIndexes.has(idx)) {
+                    selectedMarkerIndexes.add(idx);
+                    const number = markerData[idx]?.id || idx + 1;
+                    const pinSvg = getPinSvg(number, 'blue', true);
+                    const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
+                    if (markers[idx]) markers[idx].options.set('iconImageHref', pinUrl);
+                }
+            }
+            
+            updateAddressList();
+            updateSelectionStats();
+            updateAptSum();
+            
+            // Показываем уведомление
+            alert(`✅ Выбрано ${indexesToSelect.length} адресов из кластера`);
+            
+            // Центрируем карту на кластере
+            const coords = cluster.geometry.getCoordinates();
+            map.setCenter(coords, map.getZoom() + 1);
+        });
+        
         map.geoObjects.add(clusterer);
         
         map.events.add(['boundschange', 'actionend'], function() {
@@ -55,7 +93,7 @@ function initMap() {
         });
         
         restoreStateFromURL();
-        console.log('Карта готова с кластеризацией');
+        console.log('Карта готова с кластеризацией и выделением');
     });
 }
 
@@ -335,7 +373,7 @@ function clearHighlight() {
     }
 }
 
-// Добавление маркера (с кластеризацией)
+// Добавление маркера
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
@@ -385,9 +423,9 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
         balloonMaxWidth: 350
     });
     
+    placemark.properties.set('markerIndex', index);
     placemark.events.add('click', () => toggleMarkerSelection(index));
     
-    // Добавляем маркер в кластеризатор
     clusterer.add(placemark);
     markers.push(placemark);
     
@@ -621,7 +659,7 @@ function updateAddressList() {
     updateSelectionStats();
 }
 
-// Очистка всех данных (с учётом кластеризатора)
+// Очистка
 function clearAll() {
     if (clusterer) clusterer.removeAll();
     markers = [];

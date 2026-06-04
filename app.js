@@ -138,7 +138,7 @@ async function restoreStateFromURL() {
     }
 }
 
-// Получение ссылки через is.gd (работает без CORS)
+// Получение ссылки через  tinyurl.com (работает без CORS)
 async function getMapLink() {
     if (!mapReady || !map) {
         alert('Карта ещё не загружена');
@@ -146,7 +146,8 @@ async function getMapLink() {
     }
 
     const loadingDiv = document.getElementById('loading');
-    const originalLoadingText = loadingDiv ? loadingDiv.innerHTML : '';
+    const originalText = loadingDiv ? loadingDiv.innerHTML : '';
+
     if (loadingDiv) {
         loadingDiv.style.display = 'block';
         loadingDiv.innerHTML = '🔗 Сокращение ссылки...';
@@ -156,26 +157,22 @@ async function getMapLink() {
         saveStateToURL();
         const longUrl = window.location.href;
 
-        // Используем is.gd API (GET-запрос, поддерживает CORS)
-        const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`);
-        
-        if (!response.ok) {
-            throw new Error('Ошибка сокращения');
-        }
-        
+        // tinyurl.com API (GET, возвращает JSON)
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        if (!response.ok) throw new Error('Ошибка сокращения');
+
         const shortUrl = await response.text();
         await navigator.clipboard.writeText(shortUrl);
         alert(`✅ Короткая ссылка скопирована!\n\n${shortUrl}`);
-        
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error(error);
         const longUrl = window.location.href;
         await navigator.clipboard.writeText(longUrl);
         alert(`⚠️ Не удалось сократить ссылку.\n\nСкопирована полная ссылка:\n${longUrl}`);
     } finally {
         if (loadingDiv) {
             loadingDiv.style.display = 'none';
-            loadingDiv.innerHTML = originalLoadingText;
+            loadingDiv.innerHTML = originalText;
         }
     }
 }

@@ -140,6 +140,7 @@ function getMapLink() {
 }
 
 // Функция для генерации SVG-маркера (ВАШ ДИЗАЙН + белый кружок с чёрным номером)
+// Функция для генерации SVG-маркера (УВЕЛИЧЕННЫЙ кружок с номером)
 function getPinSvg(number, markerColor, isSelected = false) {
     // Цвет маркера (капля)
     let fillColor;
@@ -154,11 +155,10 @@ function getPinSvg(number, markerColor, isSelected = false) {
     // Эффект тени для выделенного маркера
     const shadowFilter = isSelected ? 
         '<filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#2196F3" flood-opacity="0.8"/></filter>' : 
-        '<filter id="shadow"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.3"/></filter>';
+        '<filter id="shadow"><feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.4"/></filter>';
     
-    // Номер в белом кружке с чёрным текстом
     return `<?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="50" height="50">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="55" height="55">
     <defs>
         ${shadowFilter}
     </defs>
@@ -170,12 +170,15 @@ function getPinSvg(number, markerColor, isSelected = false) {
             c-66.32,0-120.261,53.941-120.261,120.232c0,66.33,53.941,120.3,120.261,120.3c66.3,0,120.241-53.951,120.241-120.3
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
         
-        <!-- Белый кружок для номера -->
-        <circle cx="249" cy="160" r="38" fill="white" stroke="#cccccc" stroke-width="1.5"/>
+        <!-- БОЛЬШОЙ белый кружок для номера -->
+        <circle cx="249" cy="165" r="55" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
         
-        <!-- Чёрный номер -->
-        <text x="249" y="172" font-size="34" font-weight="bold" 
-              fill="#333333" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
+        <!-- Дополнительная внутренняя тень для объёма -->
+        <circle cx="249" cy="165" r="55" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
+        
+        <!-- КРУПНЫЙ чёрный номер -->
+        <text x="249" y="182" font-size="52" font-weight="bold" 
+              fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
 </svg>`;
 }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoMap - Назначение участков</title>
     
-    <!-- Яндекс.Карты (вставьте ваш ключ) -->
+    <!-- Яндекс.Карты -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=6d4481ef-d298-4dfe-8c48-7a0e8d282d1a&lang=ru_RU" type="text/javascript"></script>
     
     <!-- Библиотека для работы с Excel -->
@@ -56,13 +56,7 @@
             flex-direction: column;
             gap: 12px;
             overflow-y: auto;
-            transition: width 0.3s ease;
-        }
-
-        .right-panel.hidden {
-            width: 0;
-            padding: 0;
-            overflow: hidden;
+            transition: all 0.3s ease;
         }
 
         /* НИЖНЯЯ ПАНЕЛЬ */
@@ -75,6 +69,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            transition: all 0.3s ease;
         }
 
         .bottom-left {
@@ -91,32 +86,54 @@
             flex-wrap: wrap;
         }
 
-        /* КНОПКА СКРЫТИЯ/ПОКАЗА ПРАВОЙ ПАНЕЛИ */
-        .toggle-right-btn {
+        /* НАША КНОПКА РАЗВОРАЧИВАНИЯ КАРТЫ */
+        .custom-fullscreen-btn {
             position: fixed;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
+            bottom: 20px;
+            left: 20px;
             z-index: 200;
             background: #2196F3;
             color: white;
             border: none;
-            border-radius: 8px 0 0 8px;
-            width: 30px;
-            height: 80px;
-            font-size: 18px;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
             cursor: pointer;
-            box-shadow: -2px 2px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .custom-fullscreen-btn:hover {
+            background: #0b7dda;
+            transform: scale(1.05);
+        }
+
+        /* КНОПКА СКРЫТИЯ ПРАВОЙ ПАНЕЛИ */
+        .toggle-right-btn {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 32px;
+            height: 80px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px 0 0 8px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 200;
             writing-mode: vertical-rl;
+            transition: all 0.3s;
         }
 
         .toggle-right-btn:hover {
             background: #0b7dda;
-            width: 36px;
+            width: 38px;
         }
 
         .upload-area {
@@ -277,7 +294,7 @@
             border-radius: 6px;
             font-size: 12px;
             position: fixed;
-            bottom: 80px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
@@ -380,8 +397,11 @@
         </div>
     </div>
     
-    <!-- КНОПКА СКРЫТИЯ/ПОКАЗА ПРАВОЙ ПАНЕЛИ -->
-    <button class="toggle-right-btn" id="toggleRightBtn" title="Скрыть/показать список адресов">▶</button>
+    <!-- НАША КНОПКА РАЗВОРАЧИВАНИЯ КАРТЫ -->
+    <button class="custom-fullscreen-btn" id="customFullscreenBtn" title="Развернуть карту">⛶</button>
+    
+    <!-- КНОПКА СКРЫТИЯ ПРАВОЙ ПАНЕЛИ -->
+    <button class="toggle-right-btn" id="toggleRightBtn" title="Скрыть/показать список">СПИСОК</button>
     
     <div class="loading" id="loading">
         ⏳ Обработка адресов...<br>
@@ -393,46 +413,71 @@
     <script src="app.js"></script>
     
     <script>
-        // ПРОСТОЕ УПРАВЛЕНИЕ ПАНЕЛЬЮ (ГАРАНТИРОВАННО РАБОТАЕТ)
+        // УПРАВЛЕНИЕ ПАНЕЛЯМИ И РАЗВОРАЧИВАНИЕМ (ГАРАНТИРОВАННО РАБОТАЕТ)
         (function() {
             const rightPanel = document.getElementById('rightPanel');
-            const toggleBtn = document.getElementById('toggleRightBtn');
+            const bottomPanel = document.getElementById('bottomPanel');
+            const toggleRightBtn = document.getElementById('toggleRightBtn');
+            const fullscreenBtn = document.getElementById('customFullscreenBtn');
             
-            if (toggleBtn && rightPanel) {
-                let panelHidden = false;
-                
-                toggleBtn.onclick = function(e) {
+            let isRightPanelVisible = true;
+            let isFullscreen = false;
+            
+            // Кнопка скрытия/показа правой панели
+            if (toggleRightBtn && rightPanel) {
+                toggleRightBtn.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    if (panelHidden) {
-                        // Показываем панель
-                        rightPanel.classList.remove('hidden');
-                        toggleBtn.innerHTML = '◀';
-                        toggleBtn.title = 'Скрыть список адресов';
-                        panelHidden = false;
-                        console.log('Панель ПОКАЗАНА');
+                    if (isRightPanelVisible) {
+                        rightPanel.style.display = 'none';
+                        toggleRightBtn.innerHTML = 'ПОКАЗАТЬ';
+                        toggleRightBtn.style.background = '#f44336';
+                        isRightPanelVisible = false;
                     } else {
-                        // Скрываем панель
-                        rightPanel.classList.add('hidden');
-                        toggleBtn.innerHTML = '▶';
-                        toggleBtn.title = 'Показать список адресов';
-                        panelHidden = true;
-                        console.log('Панель СКРЫТА');
+                        rightPanel.style.display = 'flex';
+                        toggleRightBtn.innerHTML = 'СПИСОК';
+                        toggleRightBtn.style.background = '#2196F3';
+                        isRightPanelVisible = true;
                     }
                     
-                    // Обновляем карту
-                    setTimeout(function() {
-                        if (typeof map !== 'undefined' && map && map.container) {
-                            map.container.fitToViewport();
-                        }
+                    setTimeout(() => {
+                        if (map && map.container) map.container.fitToViewport();
                     }, 100);
                 };
-                
-                console.log('Кнопка переключения панели настроена');
-            } else {
-                console.log('Элементы не найдены');
             }
+            
+            // Кнопка разворачивания/сворачивания всего интерфейса
+            if (fullscreenBtn) {
+                fullscreenBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (!isFullscreen) {
+                        // Разворачиваем карту на весь экран, скрываем панели
+                        if (rightPanel) rightPanel.style.display = 'none';
+                        if (bottomPanel) bottomPanel.style.display = 'none';
+                        fullscreenBtn.innerHTML = '✖';
+                        fullscreenBtn.style.background = '#f44336';
+                        fullscreenBtn.title = 'Вернуть панели';
+                        isFullscreen = true;
+                    } else {
+                        // Возвращаем панели
+                        if (rightPanel && isRightPanelVisible) rightPanel.style.display = 'flex';
+                        if (bottomPanel) bottomPanel.style.display = 'flex';
+                        fullscreenBtn.innerHTML = '⛶';
+                        fullscreenBtn.style.background = '#2196F3';
+                        fullscreenBtn.title = 'Развернуть карту';
+                        isFullscreen = false;
+                    }
+                    
+                    setTimeout(() => {
+                        if (map && map.container) map.container.fitToViewport();
+                    }, 100);
+                };
+            }
+            
+            console.log('Управление панелями настроено');
         })();
     </script>
 </body>

@@ -1,4 +1,4 @@
-// app.js - с кликабельными кластерами
+// app.js - с РАБОТАЮЩЕЙ кластеризацией и кликами по кластерам
 
 let map;
 let markers = [];
@@ -24,40 +24,21 @@ function initMap() {
         clusterer = new ymaps.Clusterer({
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
-            clusterDisableClickZoom: true,
-            clusterOpenBalloonOnClick: false,
-            clusterIconLayout: 'default#imageWithContent',
-            clusterIconContentLayout: ymaps.templateLayoutFactory.createClass(
-                '<div style="' +
-                    'background: #9c27b0;' +
-                    'color: white;' +
-                    'font-weight: bold;' +
-                    'font-size: 14px;' +
-                    'font-family: Arial, sans-serif;' +
-                    'text-align: center;' +
-                    'line-height: 38px;' +
-                    'width: 38px;' +
-                    'height: 38px;' +
-                    'border-radius: 50%;' +
-                    'border: 2px solid white;' +
-                    'box-shadow: 0 2px 8px rgba(0,0,0,0.3);' +
-                    'cursor: pointer;' +
-                    'z-index: 1000;' +
-                '">' +
-                    '{{ properties.geoObjects.length }}' +
-                '</div>'
-            )
+            clusterDisableClickZoom: false,
+            clusterOpenBalloonOnClick: false
         });
         
-        // Принудительный обработчик клика по кластеру
-        clusterer.events.add('click', function(e) {
-            const cluster = e.get('target');
-            if (!cluster || !cluster.properties) return;
+        map.geoObjects.add(clusterer);
+        
+        // ПРАВИЛЬНЫЙ ОБРАБОТЧИК КЛИКА ПО КЛАСТЕРУ
+        map.events.add('click', function(e) {
+            const target = e.get('target');
+            if (!target || !target.properties) return;
             
-            const geoObjects = cluster.properties.geoObjects;
+            const geoObjects = target.properties.get('geoObjects');
             if (!geoObjects || geoObjects.length === 0) return;
             
-            // Собираем индексы всех точек в кластере
+            // Это кластер - выделяем все его точки
             const indexesToSelect = [];
             for (let i = 0; i < geoObjects.length; i++) {
                 const marker = geoObjects[i];
@@ -85,26 +66,19 @@ function initMap() {
             updateAptSum();
             
             // Уведомление
-            const message = `✅ Выбрано ${indexesToSelect.length} адресов`;
-            const notification = document.createElement('div');
-            notification.textContent = message;
-            notification.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#4CAF50; color:white; padding:8px 16px; border-radius:8px; z-index:10000; font-size:14px;';
-            document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 2000);
-            
-            // Центрируем карту на кластере
-            const coords = cluster.geometry.getCoordinates();
-            map.setCenter(coords, Math.min(map.getZoom() + 2, 17));
+            const msg = document.createElement('div');
+            msg.textContent = `✅ Выбрано ${indexesToSelect.length} адресов`;
+            msg.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#4CAF50; color:white; padding:8px 16px; border-radius:8px; z-index:10000; font-size:14px;';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 2000);
         });
-        
-        map.geoObjects.add(clusterer);
         
         map.events.add(['boundschange', 'actionend'], function() {
             if (!isRestoringFromURL) saveStateToURL();
         });
         
         restoreStateFromURL();
-        console.log('Карта готова с кликабельными кластерами');
+        console.log('Карта готова с кластеризацией');
     });
 }
 

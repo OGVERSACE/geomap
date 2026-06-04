@@ -1,4 +1,4 @@
-// app.js - с вашим дизайном пина (капля с номером)
+// app.js - с ВАШИМ дизайном маркера и номером в белом кружке
 
 let map;
 let markers = [];
@@ -139,11 +139,11 @@ function getMapLink() {
     navigator.clipboard.writeText(url).then(() => alert('✅ Ссылка скопирована!')).catch(() => prompt('Скопируйте ссылку вручную:', url));
 }
 
-// Функция для генерации SVG-пина в ДИЗАЙНЕ ВАШЕГО ФАЙЛА
-function getPinSvg(number, color, isSelected = false) {
-    // Конвертируем цвет из названия в HEX
+// Функция для генерации SVG-маркера (ВАШ ДИЗАЙН + белый кружок с чёрным номером)
+function getPinSvg(number, markerColor, isSelected = false) {
+    // Цвет маркера (капля)
     let fillColor;
-    switch(color) {
+    switch(markerColor) {
         case 'green': fillColor = '#4CAF50'; break;
         case 'orange': fillColor = '#FF9800'; break;
         case 'red': fillColor = '#F44336'; break;
@@ -151,48 +151,57 @@ function getPinSvg(number, color, isSelected = false) {
         default: fillColor = '#4CAF50';
     }
     
-    // Добавляем тень для выбранного маркера
+    // Эффект тени для выделенного маркера
     const shadowFilter = isSelected ? 
-        '<filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#2196F3" flood-opacity="0.8"/></filter>' : 
+        '<filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#2196F3" flood-opacity="0.8"/></filter>' : 
         '<filter id="shadow"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.3"/></filter>';
     
+    // Номер в белом кружке с чёрным текстом
     return `<?xml version="1.0" encoding="utf-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90" width="48" height="48">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="50" height="50">
     <defs>
         ${shadowFilter}
     </defs>
     <g filter="url(#shadow)">
-        <path d="M 45 0 C 28.527 0 15.174 13.354 15.174 29.826 C 15.174 46.299 30.086 71.757 45 90 C 59.914 71.757 74.826 46.299 74.826 29.826 C 74.826 13.354 61.473 0 45 0 Z" 
-              fill="${fillColor}" stroke="white" stroke-width="2"/>
-        <circle cx="45" cy="30" r="14" fill="rgba(255,255,255,0.25)"/>
-        <text x="45" y="40" font-size="20" font-weight="bold" 
-              fill="white" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
+        <!-- Ваш оригинальный маркер-капля -->
+        <path fill="${fillColor}" d="M269.061,484.131c-3.185,8.461-11.255,14.049-20.273,14.089
+            c-9.028,0.029-17.147-5.501-20.39-13.913c-44.034-114.321-132.63-261.205-132.63-330.964C95.767,68.801,164.539,0,249.12,0
+            c84.541,0,153.333,68.801,153.333,153.343C402.462,223.307,312.557,368.579,269.061,484.131z M249.12,29.164
+            c-66.32,0-120.261,53.941-120.261,120.232c0,66.33,53.941,120.3,120.261,120.3c66.3,0,120.241-53.951,120.241-120.3
+            C369.351,83.105,315.42,29.164,249.12,29.164z"/>
+        
+        <!-- Белый кружок для номера -->
+        <circle cx="249" cy="160" r="38" fill="white" stroke="#cccccc" stroke-width="1.5"/>
+        
+        <!-- Чёрный номер -->
+        <text x="249" y="172" font-size="34" font-weight="bold" 
+              fill="#333333" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
 </svg>`;
 }
 
-// Добавление маркера с ВАШИМ ДИЗАЙНОМ ПИНА
+// Добавление маркера с ВАШИМ ДИЗАЙНОМ
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
     
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const aptCount = markerData[index]?.apartments || 0;
     
-    // Определяем цвет пина
-    let pinColor;
+    // Определяем цвет маркера
+    let markerColor;
     if (isDuplicate) {
-        pinColor = 'red';
+        markerColor = 'red';
     } else if (hasPlot) {
-        pinColor = 'orange';
+        markerColor = 'orange';
     } else {
-        pinColor = 'green';
+        markerColor = 'green';
     }
     
     const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
     // Генерируем SVG с номером
-    const pinSvg = getPinSvg(number, pinColor, false);
+    const pinSvg = getPinSvg(number, markerColor, false);
     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
     
     const placemark = new ymaps.Placemark([lat, lon], {
@@ -201,8 +210,8 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     }, {
         iconLayout: 'default#image',
         iconImageHref: pinUrl,
-        iconImageSize: [48, 48],
-        iconImageOffset: [-24, -48],
+        iconImageSize: [50, 50],
+        iconImageOffset: [-25, -50],
         balloonMaxWidth: 350
     });
     
@@ -242,16 +251,16 @@ function updateMarkerColor(index) {
     const isDuplicate = markerData[index]?.isDuplicate || false;
     const number = markerData[index]?.id || index + 1;
     
-    let pinColor;
+    let markerColor;
     if (isDuplicate) {
-        pinColor = 'red';
+        markerColor = 'red';
     } else if (hasPlot) {
-        pinColor = 'orange';
+        markerColor = 'orange';
     } else {
-        pinColor = 'green';
+        markerColor = 'green';
     }
     
-    const pinSvg = getPinSvg(number, pinColor, false);
+    const pinSvg = getPinSvg(number, markerColor, false);
     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
     markers[index].options.set('iconImageHref', pinUrl);
 }

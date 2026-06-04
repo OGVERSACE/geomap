@@ -34,6 +34,7 @@
             display: flex;
             flex: 1;
             overflow: hidden;
+            transition: all 0.3s ease;
         }
 
         /* ЦЕНТРАЛЬНАЯ ЧАСТЬ (КАРТА) */
@@ -47,7 +48,7 @@
             width: 100%;
         }
 
-        /* ПРАВАЯ ПАНЕЛЬ (СПИСОК АДРЕСОВ - 300px) */
+        /* ПРАВАЯ ПАНЕЛЬ (СПИСОК АДРЕСОВ) */
         .right-panel {
             width: 300px;
             background: white;
@@ -58,6 +59,13 @@
             flex-direction: column;
             gap: 12px;
             overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+
+        .right-panel.hidden {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
         }
 
         /* НИЖНЯЯ ПАНЕЛЬ (МЕНЮ) */
@@ -72,6 +80,14 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .bottom-panel.hidden {
+            transform: translateY(100%);
+            padding: 0;
+            height: 0;
+            overflow: hidden;
         }
 
         .bottom-left {
@@ -86,6 +102,32 @@
             align-items: center;
             gap: 16px;
             flex-wrap: wrap;
+        }
+
+        /* КНОПКА ПЕРЕКЛЮЧЕНИЯ ПАНЕЛЕЙ */
+        .toggle-panels-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-panels-btn:hover {
+            background: #0b7dda;
+            transform: scale(1.05);
         }
 
         .upload-area {
@@ -296,7 +338,7 @@
             border-radius: 6px;
             font-size: 12px;
             position: fixed;
-            bottom: 70px;
+            bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
@@ -386,7 +428,7 @@
                 <div id="map"></div>
             </div>
             
-            <div class="right-panel">
+            <div class="right-panel" id="rightPanel">
                 <div class="list-header">
                     <h3>📋 Список адресов</h3>
                     <div class="list-actions">
@@ -401,7 +443,7 @@
             </div>
         </div>
         
-        <div class="bottom-panel">
+        <div class="bottom-panel" id="bottomPanel">
             <div class="bottom-left">
                 <h2>🗺️ GeoMap</h2>
                 <div class="upload-area" id="uploadArea">
@@ -446,6 +488,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- КНОПКА ПЕРЕКЛЮЧЕНИЯ ПАНЕЛЕЙ -->
+    <button class="toggle-panels-btn" id="togglePanelsBtn" title="Скрыть/показать панели">◀ ▶</button>
     
     <div class="loading" id="loading">
         ⏳ Обработка адресов...<br>

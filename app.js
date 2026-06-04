@@ -1,4 +1,4 @@
-// app.js - полностью исправленная версия
+// app.js - стабильная рабочая версия
 
 let map;
 let markers = [];
@@ -9,7 +9,7 @@ let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
 let currentFilterPlot = null;
 
-// Инициализация карты
+// Инициализация карты (БЕЗ кнопки спутник)
 function initMap() {
     ymaps.ready(function() {
         map = new ymaps.Map('map', {
@@ -147,18 +147,14 @@ function getMapLink() {
 }
 
 // Функция для генерации SVG-маркера
-function getPinSvg(number, markerColor, isSelected = false, isHighlighted = false) {
+function getPinSvg(number, markerColor, isSelected = false) {
     let fillColor;
-    if (isHighlighted) {
-        fillColor = '#ff9800';
-    } else {
-        switch(markerColor) {
-            case 'green': fillColor = '#4CAF50'; break;
-            case 'orange': fillColor = '#FF9800'; break;
-            case 'red': fillColor = '#F44336'; break;
-            case 'blue': fillColor = '#2196F3'; break;
-            default: fillColor = '#4CAF50';
-        }
+    switch(markerColor) {
+        case 'green': fillColor = '#4CAF50'; break;
+        case 'orange': fillColor = '#FF9800'; break;
+        case 'red': fillColor = '#F44336'; break;
+        case 'blue': fillColor = '#2196F3'; break;
+        default: fillColor = '#4CAF50';
     }
     
     const shadowFilter = isSelected ? 
@@ -176,15 +172,17 @@ function getPinSvg(number, markerColor, isSelected = false, isHighlighted = fals
             c84.541,0,153.333,68.801,153.333,153.343C402.462,223.307,312.557,368.579,269.061,484.131z M249.12,29.164
             c-66.32,0-120.261,53.941-120.261,120.232c0,66.33,53.941,120.3,120.261,120.3c66.3,0,120.241-53.951,120.241-120.3
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
+        
         <circle cx="249" cy="150" r="130" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
         <circle cx="249" cy="150" r="130" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
+        
         <text x="249" y="205" font-size="160" font-weight="bold" 
               fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
 </svg>`;
 }
 
-// Подсветка и ВЫДЕЛЕНИЕ маркеров по номеру участка
+// Подсветка по номеру участка
 function highlightByPlot(plotNumber) {
     currentFilterPlot = plotNumber;
     
@@ -202,7 +200,7 @@ function highlightByPlot(plotNumber) {
                 markerColor = 'green';
             }
             const number = markerData[index]?.id || index + 1;
-            const pinSvg = getPinSvg(number, markerColor, false, false);
+            const pinSvg = getPinSvg(number, markerColor, false);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             marker.options.set('iconImageHref', pinUrl);
         }
@@ -219,7 +217,7 @@ function highlightByPlot(plotNumber) {
         const number = markerData[i]?.id || i + 1;
         
         if (plotNumber && hasPlot && markerData[i].plot === plotNumber) {
-            const pinSvg = getPinSvg(number, 'blue', true, false);
+            const pinSvg = getPinSvg(number, 'blue', true);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             marker.options.set('iconImageHref', pinUrl);
             selectedMarkerIndexes.add(i);
@@ -233,7 +231,7 @@ function highlightByPlot(plotNumber) {
             } else {
                 markerColor = 'green';
             }
-            const pinSvg = getPinSvg(number, markerColor, false, false);
+            const pinSvg = getPinSvg(number, markerColor, false);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             marker.options.set('iconImageHref', pinUrl);
         }
@@ -263,7 +261,7 @@ function highlightByPlot(plotNumber) {
     }
 }
 
-// Сброс подсветки и выделения
+// Сброс подсветки
 function clearHighlight() {
     currentFilterPlot = null;
     
@@ -281,7 +279,7 @@ function clearHighlight() {
                 markerColor = 'green';
             }
             const number = markerData[index]?.id || index + 1;
-            const pinSvg = getPinSvg(number, markerColor, false, false);
+            const pinSvg = getPinSvg(number, markerColor, false);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             marker.options.set('iconImageHref', pinUrl);
         }
@@ -335,7 +333,7 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     if (entrancesCount > 0) hintText += `, п:${entrancesCount}`;
     hintText += `)${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`;
     
-    const pinSvg = getPinSvg(number, markerColor, false, false);
+    const pinSvg = getPinSvg(number, markerColor, false);
     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
     
     const placemark = new ymaps.Placemark([lat, lon], {
@@ -367,7 +365,7 @@ function toggleMarkerSelection(index) {
         selectedMarkerIndexes.add(index);
         if (markers[index]) {
             const number = markerData[index]?.id || index + 1;
-            const pinSvg = getPinSvg(number, 'blue', true, false);
+            const pinSvg = getPinSvg(number, 'blue', true);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             markers[index].options.set('iconImageHref', pinUrl);
         }
@@ -394,7 +392,7 @@ function updateMarkerColor(index) {
         markerColor = 'green';
     }
     
-    const pinSvg = getPinSvg(number, markerColor, false, false);
+    const pinSvg = getPinSvg(number, markerColor, false);
     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
     markers[index].options.set('iconImageHref', pinUrl);
 }
@@ -416,7 +414,7 @@ function selectAll() {
         if (addressData[i].geocodeSuccess && !selectedMarkerIndexes.has(i)) {
             selectedMarkerIndexes.add(i);
             const number = markerData[i]?.id || i + 1;
-            const pinSvg = getPinSvg(number, 'blue', true, false);
+            const pinSvg = getPinSvg(number, 'blue', true);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             if (markers[i]) markers[i].options.set('iconImageHref', pinUrl);
         }
@@ -734,7 +732,6 @@ async function processExcelFile(file) {
             await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        // Находим дубликаты
         const addressKeyMap = new Map();
         for (let i = 0; i < addressData.length; i++) {
             const item = addressData[i];
@@ -750,7 +747,6 @@ async function processExcelFile(file) {
             }
         }
         
-        // Создаём маркеры
         for (let i = 0; i < addressData.length; i++) {
             if (addressData[i].geocodeSuccess && markerData[i]) {
                 await new Promise(resolve => setTimeout(resolve, 50));
@@ -795,93 +791,38 @@ async function processExcelFile(file) {
     }
 }
 
-// ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ПАНЕЛЕЙ (ИСПРАВЛЕННОЕ)
-document.addEventListener('DOMContentLoaded', function() {
-    // Сначала инициализируем карту и все кнопки
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
     initMap();
+    document.getElementById('assignPlotBtn').onclick = assignPlotToSelected;
+    document.getElementById('exportExcelBtn').onclick = exportToExcel;
+    document.getElementById('selectAllBtn').onclick = selectAll;
+    document.getElementById('deselectAllBtn').onclick = deselectAll;
+    document.getElementById('getLinkBtn').onclick = getMapLink;
     
-    // Назначаем обработчики кнопок
-    const assignBtn = document.getElementById('assignPlotBtn');
-    const exportBtn = document.getElementById('exportExcelBtn');
-    const selectAllBtn = document.getElementById('selectAllBtn');
-    const deselectAllBtn = document.getElementById('deselectAllBtn');
-    const getLinkBtn = document.getElementById('getLinkBtn');
-    const filterBtn = document.getElementById('filterPlotBtn');
-    const clearFilterBtn = document.getElementById('clearFilterBtn');
+    document.getElementById('filterPlotBtn').onclick = () => {
+        const plotNumber = document.getElementById('plotFilterInput').value.trim();
+        if (plotNumber) {
+            highlightByPlot(plotNumber);
+        } else {
+            alert('Введите номер участка для поиска');
+        }
+    };
+    document.getElementById('clearFilterBtn').onclick = () => {
+        clearHighlight();
+    };
     
-    if (assignBtn) assignBtn.onclick = assignPlotToSelected;
-    if (exportBtn) exportBtn.onclick = exportToExcel;
-    if (selectAllBtn) selectAllBtn.onclick = selectAll;
-    if (deselectAllBtn) deselectAllBtn.onclick = deselectAll;
-    if (getLinkBtn) getLinkBtn.onclick = getMapLink;
-    
-    if (filterBtn) {
-        filterBtn.onclick = () => {
-            const plotNumber = document.getElementById('plotFilterInput').value.trim();
-            if (plotNumber) {
-                highlightByPlot(plotNumber);
-            } else {
-                alert('Введите номер участка для поиска');
-            }
-        };
-    }
-    
-    if (clearFilterBtn) {
-        clearFilterBtn.onclick = () => {
-            clearHighlight();
-        };
-    }
-    
-    // Загрузка файлов
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
-    
-    if (uploadArea && fileInput) {
-        uploadArea.onclick = () => fileInput.click();
-        uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
-        uploadArea.ondragleave = () => { uploadArea.classList.remove('dragover'); };
-        uploadArea.ondrop = (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) processExcelFile(file);
-            else alert('Загрузите файл Excel (.xlsx или .xls)');
-        };
-        fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
-    }
-    
-    // ПЕРЕКЛЮЧЕНИЕ ПАНЕЛЕЙ (КРУГЛАЯ КНОПКА)
-    const rightPanel = document.getElementById('rightPanel');
-    const bottomPanel = document.getElementById('bottomPanel');
-    const togglePanelsBtn = document.getElementById('togglePanelsBtn');
-    let panelsVisible = true;
-    
-    if (togglePanelsBtn && rightPanel && bottomPanel) {
-        togglePanelsBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            panelsVisible = !panelsVisible;
-            
-            if (panelsVisible) {
-                rightPanel.classList.remove('hidden');
-                bottomPanel.classList.remove('hidden');
-                togglePanelsBtn.innerHTML = '◀ ▶';
-                togglePanelsBtn.title = 'Скрыть панели';
-                console.log('Панели показаны');
-            } else {
-                rightPanel.classList.add('hidden');
-                bottomPanel.classList.add('hidden');
-                togglePanelsBtn.innerHTML = '▶ ◀';
-                togglePanelsBtn.title = 'Показать панели';
-                console.log('Панели скрыты');
-            }
-            
-            setTimeout(() => {
-                if (map && map.container) {
-                    map.container.fitToViewport();
-                }
-            }, 300);
-        };
-    }
+    uploadArea.onclick = () => fileInput.click();
+    uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
+    uploadArea.ondragleave = () => { uploadArea.classList.remove('dragover'); };
+    uploadArea.ondrop = (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) processExcelFile(file);
+        else alert('Загрузите файл Excel (.xlsx или .xls)');
+    };
+    fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
 });

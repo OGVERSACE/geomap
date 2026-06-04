@@ -1,4 +1,4 @@
-// app.js - с чтением участков из Excel и подсветкой по номеру
+// app.js - с автоматическим выделением при поиске участка
 
 let map;
 let markers = [];
@@ -7,7 +7,7 @@ let addressData = [];
 let mapReady = false;
 let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
-let currentFilterPlot = null; // Текущий фильтр по участку
+let currentFilterPlot = null;
 
 // Инициализация карты
 function initMap() {
@@ -150,7 +150,7 @@ function getMapLink() {
 function getPinSvg(number, markerColor, isSelected = false, isHighlighted = false) {
     let fillColor;
     if (isHighlighted) {
-        fillColor = '#ff9800'; // оранжевый для подсветки
+        fillColor = '#ff9800';
     } else {
         switch(markerColor) {
             case 'green': fillColor = '#4CAF50'; break;
@@ -186,10 +186,34 @@ function getPinSvg(number, markerColor, isSelected = false, isHighlighted = fals
 </svg>`;
 }
 
-// Подсветка маркеров по номеру участка
+// Подсветка и ВЫДЕЛЕНИЕ маркеров по номеру участка
 function highlightByPlot(plotNumber) {
     currentFilterPlot = plotNumber;
     
+    // Сначала снимаем все текущие выделения
+    for (let index of selectedMarkerIndexes) {
+        const marker = markers[index];
+        if (marker) {
+            const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
+            const isDuplicate = markerData[index]?.isDuplicate || false;
+            let markerColor;
+            if (isDuplicate) {
+                markerColor = 'red';
+            } else if (hasPlot) {
+                markerColor = 'orange';
+            } else {
+                markerColor = 'green';
+            }
+            const number = markerData[index]?.id || index + 1;
+            const pinSvg = getPinSvg(number, markerColor, false, false);
+            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
+            marker.options.set('iconImageHref', pinUrl);
+        }
+    }
+    selectedMarkerIndexes.clear();
+    
+    // Находим и выделяем маркеры с нужным участком
+    let foundCount = 0;
     for (let i = 0; i < markerData.length; i++) {
         const marker = markers[i];
         if (!marker) continue;
@@ -199,10 +223,12 @@ function highlightByPlot(plotNumber) {
         const number = markerData[i]?.id || i + 1;
         
         if (plotNumber && hasPlot && markerData[i].plot === plotNumber) {
-            // Подсвечиваем маркер оранжевым
-            const pinSvg = getPinSvg(number, 'orange', false, true);
+            // ВЫДЕЛЯЕМ маркер СИНИМ цветом
+            const pinSvg = getPinSvg(number, 'blue', true, false);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             marker.options.set('iconImageHref', pinUrl);
+            selectedMarkerIndexes.add(i);
+            foundCount++;
         } else {
             // Возвращаем обычный цвет
             let markerColor;
@@ -219,21 +245,69 @@ function highlightByPlot(plotNumber) {
         }
     }
     
-    // Обновляем список для подсветки строк
+    // Обновляем список для подсветки строк и статистику
     updateAddressList();
+    updateSelectionStats();
+    updateAptSum();
     
     // Показываем/скрываем кнопку сброса
     const clearBtn = document.getElementById('clearFilterBtn');
     if (clearBtn) {
         clearBtn.style.display = plotNumber ? 'inline-block' : 'none';
     }
+    
+    // Центрируем карту на первом найденном маркере
+    if (foundCount > 0) {
+        for (let i = 0; i < markers.length; i++) {
+            if (selectedMarkerIndexes.has(i)) {
+                const coords = markers[i].geometry.getCoordinates();
+                map.setCenter(coords, 14);
+                break;
+            }
+        }
+    }
+    
+    // Уведомление
+    if (plotNumber) {
+        alert(`🔍 Найдено ${foundCount} адресов на участке "${plotNumber}"`);
+    }
 }
 
-// Сброс подсветки
+// Сброс подсветки и выделения
 function clearHighlight() {
     currentFilterPlot = null;
-    highlightByPlot(null);
+    
+    // Снимаем все выделения
+    for (let index of selectedMarkerIndexes) {
+        const marker = markers[index];
+        if (marker) {
+            const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
+            const isDuplicate = markerData[index]?.isDuplicate || false;
+            let markerColor;
+            if (isDuplicate) {
+                markerColor = 'red';
+            } else if (hasPlot) {
+                markerColor = 'orange';
+            } else {
+                markerColor = 'green';
+            }
+            const number = markerData[index]?.id || index + 1;
+            const pinSvg = getPinSvg(number, markerColor, false, false);
+            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
+            marker.options.set('iconImageHref', pinUrl);
+        }
+    }
+    selectedMarkerIndexes.clear();
+    
     document.getElementById('plotFilterInput').value = '';
+    updateAddressList();
+    updateSelectionStats();
+    updateAptSum();
+    
+    const clearBtn = document.getElementById('clearFilterBtn');
+    if (clearBtn) {
+        clearBtn.style.display = 'none';
+    }
 }
 
 // Добавление маркера
@@ -479,7 +553,6 @@ function updateAddressList() {
         const floorsCount = markerInfo?.floors || 0;
         const entrancesCount = markerInfo?.entrances || 0;
         
-        // Подсветка если адрес подходит под фильтр
         const isHighlighted = currentFilterPlot && markerInfo && markerInfo.plot === currentFilterPlot;
         
         let paramsText = `🏢 Квартир: ${aptCount}`;
@@ -569,7 +642,7 @@ function exportToExcel() {
     alert(`Экспортировано ${exportData.length - 1} адресов`);
 }
 
-// Обработка Excel (с поддержкой колонки "Участок")
+// Обработка Excel
 async function processExcelFile(file) {
     const loadingDiv = document.getElementById('loading');
     const progressFill = document.getElementById('progressFill');
@@ -653,7 +726,7 @@ async function processExcelFile(file) {
                         id: addr.id,
                         address: result.address,
                         originalAddress: originalAddress,
-                        plot: addr.plot || null, // Участок из Excel
+                        plot: addr.plot || null,
                         apartments: addr.apartments,
                         floors: addr.floors,
                         entrances: addr.entrances,

@@ -5,60 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoMap - Назначение участков</title>
     
-    <!-- Яндекс.Карты (только зум и полноэкранный режим) -->
     <script src="https://api-maps.yandex.ru/2.1/?apikey=6d4481ef-d298-4dfe-8c48-7a0e8d282d1a&lang=ru_RU" type="text/javascript"></script>
-    
-    <!-- Библиотека для работы с Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-        }
-
-        .app {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .main-area {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .map-container {
-            flex: 1;
-            position: relative;
-        }
-
-        #map {
-            height: 100%;
-            width: 100%;
-        }
-
-        /* ПРАВАЯ ПАНЕЛЬ (СПИСОК АДРЕСОВ) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+        .main-area { display: flex; flex: 1; overflow: hidden; }
+        .map-container { flex: 1; position: relative; }
+        #map { height: 100%; width: 100%; }
+        
         .right-panel {
             width: 300px;
             background: white;
             padding: 14px;
             box-shadow: -2px 0 8px rgba(0,0,0,0.08);
-            z-index: 10;
             display: flex;
             flex-direction: column;
             gap: 12px;
             overflow-y: auto;
         }
-
-        /* НИЖНЯЯ ПАНЕЛЬ (МЕНЮ) */
+        
         .bottom-panel {
             background: white;
             border-top: 1px solid #e0e0e0;
@@ -69,377 +37,102 @@
             justify-content: space-between;
             gap: 12px;
         }
-
-        .bottom-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .bottom-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
+        
+        .bottom-left, .bottom-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        
         .upload-area {
             border: 2px dashed #ccc;
             border-radius: 6px;
             padding: 6px 14px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
             font-size: 12px;
             display: inline-flex;
             align-items: center;
             gap: 6px;
         }
-
-        .upload-area:hover {
-            border-color: #4CAF50;
-            background: #f9f9f9;
-        }
-
-        .upload-area.dragover {
-            border-color: #4CAF50;
-            background: #e8f5e9;
-        }
-
-        button {
-            padding: 6px 14px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: #4CAF50;
-            color: white;
-        }
-        .btn-primary:hover { background: #45a049; }
-
-        .btn-secondary {
-            background: #2196F3;
-            color: white;
-        }
-        .btn-secondary:hover { background: #0b7dda; }
-
-        .btn-warning {
-            background: #ff9800;
-            color: white;
-        }
-        .btn-warning:hover { background: #e68900; }
-
-        .btn-purple {
-            background: #9c27b0;
-            color: white;
-        }
-        .btn-purple:hover { background: #7b1fa2; }
-
-        .btn-outline {
-            background: white;
-            color: #2196F3;
-            border: 1px solid #2196F3;
-        }
-        .btn-outline:hover { background: #e3f2fd; }
-
-        .stats {
-            background: #f5f5f5;
-            padding: 5px 14px;
-            border-radius: 6px;
-            font-size: 12px;
-            display: inline-flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .stats-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .stats-number {
-            font-weight: bold;
-            color: #2196F3;
-            font-size: 14px;
-        }
-
-        .plot-selector {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #f5f5f5;
-            padding: 5px 12px;
-            border-radius: 6px;
-        }
-
-        .plot-selector input {
-            width: 100px;
-            padding: 5px 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .plot-filter {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #f5f5f5;
-            padding: 5px 12px;
-            border-radius: 6px;
-        }
-
-        .plot-filter input {
-            width: 100px;
-            padding: 5px 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-
-        .current-selection {
-            font-size: 12px;
-            color: #666;
-            background: #e8f5e9;
-            padding: 5px 12px;
-            border-radius: 5px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .apt-summary {
-            background: #e3f2fd;
-            padding: 5px 12px;
-            border-radius: 5px;
-            font-size: 12px;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .apt-summary span {
-            color: #2196F3;
-            font-size: 14px;
-        }
-
-        .address-list {
-            flex: 1;
-            overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            background: #fafafa;
-        }
-
-        .address-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            transition: background 0.2s;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .address-item:hover {
-            background: #f0f0f0;
-        }
-
-        .address-item.selected {
-            background: #e3f2fd;
-        }
-
-        .address-item.success {
-            border-left: 3px solid #4CAF50;
-        }
-
-        .address-item.error {
-            border-left: 3px solid #f44336;
-        }
-
-        .address-item.highlight {
-            background: #fff3e0;
-            border-left: 3px solid #ff9800;
-        }
-
-        .address-plot {
-            font-size: 10px;
-            color: #666;
-            margin-top: 4px;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 8px 16px;
-            background: #fff3cd;
-            border-radius: 6px;
-            font-size: 12px;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .progress-bar {
-            width: 250px;
-            height: 14px;
-            background: #e0e0e0;
-            border-radius: 7px;
-            overflow: hidden;
-            margin: 5px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #4CAF50;
-            transition: width 0.3s;
-            width: 0%;
-        }
-
-        h2 {
-            font-size: 14px;
-            margin: 0;
-        }
-
-        h3 {
-            font-size: 14px;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .small-text {
-            font-size: 10px;
-            color: #666;
-        }
+        .upload-area:hover { border-color: #4CAF50; background: #f9f9f9; }
         
-        .address-checkbox {
-            margin-top: 2px;
-            margin-right: 8px;
-            transform: scale(0.9);
-        }
-
-        .address-content {
-            flex: 1;
-        }
-
-        .list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .list-header h3 {
-            margin-bottom: 0;
-        }
-
-        .list-actions {
-            display: flex;
-            gap: 6px;
-        }
-
-        .list-actions button {
-            padding: 4px 10px;
-            font-size: 11px;
-        }
-
-        .flex-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-        }
-
-        .separator {
-            width: 1px;
-            height: 30px;
-            background: #ddd;
-        }
+        button { padding: 6px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        .btn-primary { background: #4CAF50; color: white; }
+        .btn-secondary { background: #2196F3; color: white; }
+        .btn-warning { background: #ff9800; color: white; }
+        .btn-purple { background: #9c27b0; color: white; }
+        .btn-outline { background: white; color: #2196F3; border: 1px solid #2196F3; }
+        
+        .stats { background: #f5f5f5; padding: 5px 14px; border-radius: 6px; font-size: 12px; display: inline-flex; gap: 16px; }
+        .stats-item { display: inline-flex; align-items: center; gap: 5px; }
+        .stats-number { font-weight: bold; color: #2196F3; font-size: 14px; }
+        
+        .plot-selector, .plot-filter { display: inline-flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 5px 12px; border-radius: 6px; }
+        .plot-selector input, .plot-filter input { width: 100px; padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; }
+        
+        .current-selection, .apt-summary { padding: 5px 12px; border-radius: 5px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+        .current-selection { background: #e8f5e9; color: #666; }
+        .apt-summary { background: #e3f2fd; font-weight: bold; }
+        
+        .address-list { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #fafafa; }
+        .address-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 12px; }
+        .address-item:hover { background: #f0f0f0; }
+        .address-item.selected { background: #e3f2fd; }
+        .address-item.success { border-left: 3px solid #4CAF50; }
+        .address-item.error { border-left: 3px solid #f44336; }
+        .address-item.highlight { background: #fff3e0; border-left: 3px solid #ff9800; }
+        .address-plot { font-size: 10px; color: #666; margin-top: 4px; }
+        
+        .loading { display: none; text-align: center; padding: 8px 16px; background: #fff3cd; border-radius: 6px; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        .progress-bar { width: 250px; height: 14px; background: #e0e0e0; border-radius: 7px; overflow: hidden; margin: 5px 0; }
+        .progress-fill { height: 100%; background: #4CAF50; transition: width 0.3s; }
+        
+        h2, h3 { font-size: 14px; margin: 0; }
+        .small-text { font-size: 10px; color: #666; }
+        .address-checkbox { margin-right: 8px; transform: scale(0.9); }
+        .flex-row { display: flex; align-items: flex-start; gap: 8px; }
+        .address-content { flex: 1; }
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .separator { width: 1px; height: 30px; background: #ddd; }
     </style>
 </head>
 <body>
-    <div class="app">
-        <div class="main-area">
-            <div class="map-container">
-                <div id="map"></div>
+<div class="app">
+    <div class="main-area">
+        <div class="map-container"><div id="map"></div></div>
+        <div class="right-panel" id="rightPanel">
+            <div class="list-header">
+                <h3>📋 Список адресов</h3>
+                <div><button class="btn-secondary" id="selectAllBtn">✅ Все</button> <button class="btn-warning" id="deselectAllBtn">⬜ Снять</button></div>
             </div>
-            
-            <div class="right-panel" id="rightPanel">
-                <div class="list-header">
-                    <h3>📋 Список адресов</h3>
-                    <div class="list-actions">
-                        <button class="btn-secondary" id="selectAllBtn">✅ Все</button>
-                        <button class="btn-warning" id="deselectAllBtn">⬜ Снять</button>
-                    </div>
-                </div>
-                <div class="address-list" id="addressList"></div>
-                <div class="small-text" style="margin-top: 8px; text-align: center;">
-                    💡 Клик по адресу — центрирование карты
-                </div>
-            </div>
-        </div>
-        
-        <div class="bottom-panel" id="bottomPanel">
-            <div class="bottom-left">
-                <h2>🗺️ GeoMap</h2>
-                <div class="upload-area" id="uploadArea">
-                    📁 Загрузить Excel
-                </div>
-                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
-                
-                <div class="stats" id="stats">
-                    <div class="stats-item">📊 Всего: <span class="stats-number" id="totalCount">0</span></div>
-                    <div class="stats-item">📍 На карте: <span class="stats-number" id="mapCount">0</span></div>
-                    <div class="stats-item">🏷️ С участком: <span class="stats-number" id="assignedCount">0</span></div>
-                    <div class="stats-item">⚠️ Дубл.: <span class="stats-number" id="duplicateCount" style="color:#f44336;">0</span></div>
-                </div>
-            </div>
-            
-            <div class="bottom-right">
-                <div class="plot-filter">
-                    <label>🔍 Найти участок:</label>
-                    <input type="text" id="plotFilterInput" placeholder="Номер участка">
-                    <button class="btn-outline" id="filterPlotBtn">🔍 Найти</button>
-                    <button class="btn-warning" id="clearFilterBtn" style="display:none;">✖️ Сброс</button>
-                </div>
-                
-                <div class="plot-selector">
-                    <label>🎯 Участок:</label>
-                    <input type="text" id="plotInput" placeholder="Номер">
-                    <button class="btn-primary" id="assignPlotBtn">📌 Назначить</button>
-                </div>
-                
-                <div class="apt-summary" id="aptSummary">
-                    🏢 Сумма квартир: <span id="selectedAptSum">0</span>
-                </div>
-                
-                <div class="current-selection" id="currentSelection">
-                    ✅ Выбрано: <span id="selectedCount">0</span>
-                </div>
-                
-                <div class="separator"></div>
-                
-                <button class="btn-purple" id="getLinkBtn">🔗 Получить ссылку</button>
-                <button class="btn-secondary" id="exportExcelBtn">📎 Выгрузить Excel</button>
-            </div>
+            <div class="address-list" id="addressList"></div>
+            <div class="small-text" style="text-align:center;">💡 Клик по адресу — центрирование</div>
         </div>
     </div>
-    
-    <div class="loading" id="loading">
-        ⏳ Обработка адресов...<br>
-        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <span id="progressText">0/0</span>
+    <div class="bottom-panel" id="bottomPanel">
+        <div class="bottom-left">
+            <h2>🗺️ GeoMap</h2>
+            <div class="upload-area" id="uploadArea">📁 Загрузить Excel</div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+            <div class="stats">
+                <div class="stats-item">📊 <span class="stats-number" id="totalCount">0</span></div>
+                <div class="stats-item">📍 <span class="stats-number" id="mapCount">0</span></div>
+                <div class="stats-item">🏷️ <span class="stats-number" id="assignedCount">0</span></div>
+                <div class="stats-item">⚠️ <span class="stats-number" id="duplicateCount" style="color:#f44336;">0</span></div>
+            </div>
+        </div>
+        <div class="bottom-right">
+            <div class="plot-filter"><label>🔍</label><input type="text" id="plotFilterInput" placeholder="Участок"><button class="btn-outline" id="filterPlotBtn">Найти</button><button class="btn-warning" id="clearFilterBtn" style="display:none;">✖️</button></div>
+            <div class="plot-selector"><label>🎯</label><input type="text" id="plotInput" placeholder="Номер"><button class="btn-primary" id="assignPlotBtn">Назначить</button></div>
+            <div class="apt-summary">🏢 <span id="selectedAptSum">0</span></div>
+            <div class="current-selection">✅ <span id="selectedCount">0</span></div>
+            <div class="separator"></div>
+            <button class="btn-purple" id="getLinkBtn">🔗 Получить ссылку</button>
+            <button class="btn-secondary" id="exportExcelBtn">📎 Выгрузить Excel</button>
+        </div>
     </div>
-    
-    <script src="geocoder.js"></script>
-    <script src="app.js"></script>
+</div>
+
+<div class="loading" id="loading"><span>⏳</span><div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div><span id="progressText">0/0</span></div>
+
+<script src="geocoder.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

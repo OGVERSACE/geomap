@@ -1,4 +1,4 @@
-// app.js - с автоматическим выделением при поиске участка
+// app.js - с исправленным переключением панелей
 
 let map;
 let markers = [];
@@ -12,6 +12,7 @@ let currentFilterPlot = null;
 // Инициализация карты
 function initMap() {
     ymaps.ready(function() {
+        // БЕЗ typeSelector (кнопка спутник) - только зум и полноэкранный режим
         map = new ymaps.Map('map', {
             center: [55.751244, 37.618423],
             zoom: 10,
@@ -176,10 +177,8 @@ function getPinSvg(number, markerColor, isSelected = false, isHighlighted = fals
             c84.541,0,153.333,68.801,153.333,153.343C402.462,223.307,312.557,368.579,269.061,484.131z M249.12,29.164
             c-66.32,0-120.261,53.941-120.261,120.232c0,66.33,53.941,120.3,120.261,120.3c66.3,0,120.241-53.951,120.241-120.3
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
-        
         <circle cx="249" cy="150" r="130" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
         <circle cx="249" cy="150" r="130" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
-        
         <text x="249" y="205" font-size="160" font-weight="bold" 
               fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
@@ -223,14 +222,12 @@ function highlightByPlot(plotNumber) {
         const number = markerData[i]?.id || i + 1;
         
         if (plotNumber && hasPlot && markerData[i].plot === plotNumber) {
-            // ВЫДЕЛЯЕМ маркер СИНИМ цветом
             const pinSvg = getPinSvg(number, 'blue', true, false);
             const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
             marker.options.set('iconImageHref', pinUrl);
             selectedMarkerIndexes.add(i);
             foundCount++;
         } else {
-            // Возвращаем обычный цвет
             let markerColor;
             if (isDuplicate) {
                 markerColor = 'red';
@@ -245,18 +242,15 @@ function highlightByPlot(plotNumber) {
         }
     }
     
-    // Обновляем список для подсветки строк и статистику
     updateAddressList();
     updateSelectionStats();
     updateAptSum();
     
-    // Показываем/скрываем кнопку сброса
     const clearBtn = document.getElementById('clearFilterBtn');
     if (clearBtn) {
         clearBtn.style.display = plotNumber ? 'inline-block' : 'none';
     }
     
-    // Центрируем карту на первом найденном маркере
     if (foundCount > 0) {
         for (let i = 0; i < markers.length; i++) {
             if (selectedMarkerIndexes.has(i)) {
@@ -267,7 +261,6 @@ function highlightByPlot(plotNumber) {
         }
     }
     
-    // Уведомление
     if (plotNumber) {
         alert(`🔍 Найдено ${foundCount} адресов на участке "${plotNumber}"`);
     }
@@ -277,7 +270,6 @@ function highlightByPlot(plotNumber) {
 function clearHighlight() {
     currentFilterPlot = null;
     
-    // Снимаем все выделения
     for (let index of selectedMarkerIndexes) {
         const marker = markers[index];
         if (marker) {
@@ -806,69 +798,87 @@ async function processExcelFile(file) {
     }
 }
 
-// Инициализация
-document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    document.getElementById('assignPlotBtn').onclick = assignPlotToSelected;
-    document.getElementById('exportExcelBtn').onclick = exportToExcel;
-    document.getElementById('selectAllBtn').onclick = selectAll;
-    document.getElementById('deselectAllBtn').onclick = deselectAll;
-    document.getElementById('getLinkBtn').onclick = getMapLink;
-    document.getElementById('filterPlotBtn').onclick = () => {
-        const plotNumber = document.getElementById('plotFilterInput').value.trim();
-        if (plotNumber) {
-            highlightByPlot(plotNumber);
-        } else {
-            alert('Введите номер участка для поиска');
-        }
-    };
-    document.getElementById('clearFilterBtn').onclick = () => {
-        clearHighlight();
-    };
-    
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    uploadArea.onclick = () => fileInput.click();
-    uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
-    uploadArea.ondragleave = () => { uploadArea.classList.remove('dragover'); };
-    uploadArea.ondrop = (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) processExcelFile(file);
-        else alert('Загрузите файл Excel (.xlsx или .xls)');
-    };
-    fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
-	// Переключение видимости панелей
-	let panelsVisible = true;
-	const togglePanelsBtn = document.getElementById('togglePanelsBtn');
-	const rightPanel = document.getElementById('rightPanel');
-	const bottomPanel = document.getElementById('bottomPanel');
+// ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ПАНЕЛЕЙ
+let panelsVisible = true;
+const rightPanel = document.getElementById('rightPanel');
+const bottomPanel = document.getElementById('bottomPanel');
+const togglePanelsBtn = document.getElementById('togglePanelsBtn');
 
-	if (togglePanelsBtn) {
-    togglePanelsBtn.addEventListener('click', function() {
+if (togglePanelsBtn) {
+    togglePanelsBtn.onclick = function() {
         panelsVisible = !panelsVisible;
         
         if (panelsVisible) {
-            // Показываем панели
             rightPanel.classList.remove('hidden');
             bottomPanel.classList.remove('hidden');
             togglePanelsBtn.innerHTML = '◀ ▶';
             togglePanelsBtn.title = 'Скрыть панели';
         } else {
-            // Скрываем панели
             rightPanel.classList.add('hidden');
             bottomPanel.classList.add('hidden');
             togglePanelsBtn.innerHTML = '▶ ◀';
             togglePanelsBtn.title = 'Показать панели';
         }
         
-        // Обновляем размер карты после изменения видимости панелей
         setTimeout(() => {
             if (map && map.container) {
                 map.container.fitToViewport();
             }
         }, 300);
-    });
+    };
 }
+
+// Инициализация кнопок после загрузки страницы
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    
+    // Назначаем обработчики кнопок
+    const assignBtn = document.getElementById('assignPlotBtn');
+    const exportBtn = document.getElementById('exportExcelBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const getLinkBtn = document.getElementById('getLinkBtn');
+    const filterBtn = document.getElementById('filterPlotBtn');
+    const clearFilterBtn = document.getElementById('clearFilterBtn');
+    
+    if (assignBtn) assignBtn.onclick = assignPlotToSelected;
+    if (exportBtn) exportBtn.onclick = exportToExcel;
+    if (selectAllBtn) selectAllBtn.onclick = selectAll;
+    if (deselectAllBtn) deselectAllBtn.onclick = deselectAll;
+    if (getLinkBtn) getLinkBtn.onclick = getMapLink;
+    
+    if (filterBtn) {
+        filterBtn.onclick = () => {
+            const plotNumber = document.getElementById('plotFilterInput').value.trim();
+            if (plotNumber) {
+                highlightByPlot(plotNumber);
+            } else {
+                alert('Введите номер участка для поиска');
+            }
+        };
+    }
+    
+    if (clearFilterBtn) {
+        clearFilterBtn.onclick = () => {
+            clearHighlight();
+        };
+    }
+    
+    // Загрузка файлов
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    if (uploadArea && fileInput) {
+        uploadArea.onclick = () => fileInput.click();
+        uploadArea.ondragover = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
+        uploadArea.ondragleave = () => { uploadArea.classList.remove('dragover'); };
+        uploadArea.ondrop = (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) processExcelFile(file);
+            else alert('Загрузите файл Excel (.xlsx или .xls)');
+        };
+        fileInput.onchange = (e) => { if (e.target.files[0]) processExcelFile(e.target.files[0]); };
+    }
 });

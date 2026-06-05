@@ -1,4 +1,4 @@
-// app.js - с линейкой, цветами участков и фильтром по этажам
+// app.js - с автодополнением участков, улучшенной линейкой и коррекцией адресов
 
 let map;
 let markers = [];
@@ -19,25 +19,53 @@ let rulerPlacemarks = [];
 // Переменные для фильтра по этажам
 let currentFloorsFilter = 0;
 
+// Функция для обновления списка участков в datalist
+function updatePlotLists() {
+    const plots = new Set();
+    for (const data of markerData) {
+        if (data && data.plot && data.plot !== '') {
+            plots.add(data.plot);
+        }
+    }
+    
+    const plotList = document.getElementById('plotList');
+    const plotListAssign = document.getElementById('plotListAssign');
+    
+    if (plotList) {
+        plotList.innerHTML = '';
+        for (const plot of plots) {
+            const option = document.createElement('option');
+            option.value = plot;
+            plotList.appendChild(option);
+        }
+    }
+    
+    if (plotListAssign) {
+        plotListAssign.innerHTML = '';
+        for (const plot of plots) {
+            const option = document.createElement('option');
+            option.value = plot;
+            plotListAssign.appendChild(option);
+        }
+    }
+}
+
 // Генератор цветов для участков
 function getColorForPlot(plotName) {
     if (!plotName || plotName === '') return null;
     
-    // Простой хэш для генерации цвета из строки
     let hash = 0;
     for (let i = 0; i < plotName.length; i++) {
         hash = ((hash << 5) - hash) + plotName.charCodeAt(i);
         hash = hash & hash;
     }
-    // Генерируем HSL цвет (насыщенность 70%, яркость 50%)
     const hue = Math.abs(hash % 360);
-    return `hsl(${hue}, 70%, 50%)`;
+    return `hsl(${hue}, 70%, 55%)`;
 }
 
 // Кэш цветов для участков
 const plotColors = new Map();
 
-// Функция для получения цвета маркера (учитывает участок)
 function getMarkerColor(index) {
     const data = markerData[index];
     if (!data) return 'green';
@@ -47,50 +75,34 @@ function getMarkerColor(index) {
     
     const plotName = data.plot;
     if (plotName && plotName !== '') {
-        // У участка есть цвет
         if (!plotColors.has(plotName)) {
             plotColors.set(plotName, getColorForPlot(plotName));
         }
         return plotColors.get(plotName);
     }
     
-    // Нет участка
     return 'green';
 }
 
-// Проверка, нужно ли показывать маркер (по фильтру этажей)
 function shouldShowMarker(index) {
     if (currentFloorsFilter === 0) return true;
     
     const floors = markerData[index]?.floors || 0;
-    // Если этажи не указаны (0), показываем всегда
     if (floors === 0) return true;
     return floors >= currentFloorsFilter;
 }
 
-// Применение фильтра по этажам
 function applyFloorsFilter() {
     const filterInput = document.getElementById('floorsFilter');
     currentFloorsFilter = parseInt(filterInput.value) || 0;
     
     for (let i = 0; i < markers.length; i++) {
         const marker = markers[i];
-        if (!marker) continue;
-        
-        if (shouldShowMarker(i)) {
-            // Показываем маркер
-            if (clusterer) {
-                // Пересоздаём кластеризатор с учётом фильтра
-                // Проще обновить видимость через опции
-                marker.options.set('visible', true);
-            }
-        } else {
-            // Скрываем маркер
-            marker.options.set('visible', false);
+        if (marker) {
+            marker.options.set('visible', shouldShowMarker(i));
         }
     }
     
-    // Обновляем кластеризатор
     if (clusterer) {
         clusterer.reload();
     }
@@ -98,7 +110,6 @@ function applyFloorsFilter() {
     updateAddressList();
 }
 
-// Сброс фильтра по этажам
 function resetFloorsFilter() {
     document.getElementById('floorsFilter').value = 0;
     currentFloorsFilter = 0;
@@ -117,7 +128,7 @@ function resetFloorsFilter() {
     updateAddressList();
 }
 
-// Линейка: очистка всех измерений
+// Линейка
 function clearRuler() {
     if (rulerLine) {
         map.geoObjects.remove(rulerLine);
@@ -129,18 +140,16 @@ function clearRuler() {
     rulerPlacemarks = [];
     rulerPoints = [];
     document.getElementById('distanceInfo').style.display = 'none';
+    document.getElementById('distanceControls').style.display = 'none';
 }
 
-// Линейка: обновление линии и отображения расстояния
 function updateRuler() {
     if (rulerPoints.length < 2) return;
     
-    // Удаляем старую линию
     if (rulerLine) {
         map.geoObjects.remove(rulerLine);
     }
     
-    // Создаём новую линию
     rulerLine = new ymaps.Polyline(rulerPoints, {}, {
         strokeColor: '#2196F3',
         strokeWidth: 4,
@@ -148,7 +157,6 @@ function updateRuler() {
     });
     map.geoObjects.add(rulerLine);
     
-    // Вычисляем общее расстояние
     let totalDistance = 0;
     for (let i = 1; i < rulerPoints.length; i++) {
         const p1 = rulerPoints[i-1];
@@ -157,7 +165,6 @@ function updateRuler() {
         totalDistance += distance;
     }
     
-    // Показываем информацию
     const infoDiv = document.getElementById('distanceInfo');
     if (totalDistance < 1000) {
         infoDiv.innerHTML = `📏 Расстояние: ${Math.round(totalDistance)} м`;
@@ -165,6 +172,81 @@ function updateRuler() {
         infoDiv.innerHTML = `📏 Расстояние: ${(totalDistance / 1000).toFixed(2)} км`;
     }
     infoDiv.style.display = 'block';
+    document.getElementById('distanceControls').style.display = 'flex';
+}
+
+function addRulerPoint(coords) {
+    rulerPoints.push(coords);
+    
+    const placemark = new ymaps.Placemark(coords, {
+        balloonContent: `Точка ${rulerPoints.length}`
+    }, {
+        preset: 'islands#blueIcon',
+        draggable: true
+    });
+    
+    placemark.events.add('dragend', function() {
+        const newCoords = placemark.geometry.getCoordinates();
+        const idx = rulerPlacemarks.indexOf(placemark);
+        if (idx !== -1) {
+            rulerPoints[idx] = newCoords;
+            updateRuler();
+        }
+    });
+    
+    // Добавляем возможность удалить точку по правому клику
+    placemark.events.add('contextmenu', function(e) {
+        e.preventDefault();
+        const idx = rulerPlacemarks.indexOf(placemark);
+        if (idx !== -1) {
+            map.geoObjects.remove(placemark);
+            rulerPlacemarks.splice(idx, 1);
+            rulerPoints.splice(idx, 1);
+            updateRuler();
+            if (rulerPoints.length === 0) {
+                clearRuler();
+            }
+        }
+    });
+    
+    map.geoObjects.add(placemark);
+    rulerPlacemarks.push(placemark);
+    
+    if (rulerPoints.length >= 2) {
+        updateRuler();
+    }
+}
+
+function toggleRuler() {
+    rulerActive = !rulerActive;
+    const rulerBtn = document.getElementById('rulerBtn');
+    
+    if (rulerActive) {
+        rulerBtn.classList.add('active');
+        rulerBtn.style.background = '#2196F3';
+        rulerBtn.style.color = 'white';
+    } else {
+        rulerBtn.classList.remove('active');
+        rulerBtn.style.background = 'white';
+        rulerBtn.style.color = 'black';
+        clearRuler();
+    }
+}
+
+// Коррекция адреса: если буква в корпусе, переносим её к номеру дома
+function normalizeAddress(street, house, building) {
+    let normalizedHouse = house;
+    let normalizedBuilding = building;
+    
+    // Если в корпусе есть буква, а дом без буквы
+    if (building && building.trim() !== '' && /[А-Яа-я]$/.test(building) && !/[А-Яа-я]$/.test(house)) {
+        // Переносим букву к номеру дома
+        const letter = building.trim();
+        normalizedHouse = house + letter;
+        normalizedBuilding = '';
+    }
+    
+    return { street, house: normalizedHouse, building: normalizedBuilding };
 }
 
 // Инициализация карты
@@ -177,7 +259,6 @@ function initMap() {
         });
         mapReady = true;
         
-        // Создаём кластеризатор
         clusterer = new ymaps.Clusterer({
             preset: 'islands#invertedVioletClusterIcons',
             groupByCoordinates: false,
@@ -185,7 +266,6 @@ function initMap() {
             clusterOpenBalloonOnClick: false
         });
         
-        // Обработчик клика по кластеру - выделение всех точек внутри
         clusterer.events.add('click', function(e) {
             const cluster = e.get('target');
             const geoObjects = cluster.properties.get('geoObjects');
@@ -231,34 +311,8 @@ function initMap() {
         // Обработчик клика для линейки
         map.events.add('click', function(e) {
             if (!rulerActive) return;
-            
             const coords = e.get('coords');
-            rulerPoints.push(coords);
-            
-            // Добавляем метку
-            const placemark = new ymaps.Placemark(coords, {
-                balloonContent: `Точка ${rulerPoints.length}`
-            }, {
-                preset: 'islands#blueIcon',
-                draggable: true
-            });
-            
-            // Обновляем метку при перетаскивании
-            placemark.events.add('dragend', function() {
-                const newCoords = placemark.geometry.getCoordinates();
-                const idx = rulerPlacemarks.indexOf(placemark);
-                if (idx !== -1) {
-                    rulerPoints[idx] = newCoords;
-                    updateRuler();
-                }
-            });
-            
-            map.geoObjects.add(placemark);
-            rulerPlacemarks.push(placemark);
-            
-            if (rulerPoints.length >= 2) {
-                updateRuler();
-            }
+            addRulerPoint(coords);
         });
         
         map.events.add(['boundschange', 'actionend'], function() {
@@ -268,24 +322,6 @@ function initMap() {
         restoreStateFromURL();
         console.log('Карта готова');
     });
-}
-
-// Кнопка линейки
-function toggleRuler() {
-    rulerActive = !rulerActive;
-    const rulerBtn = document.getElementById('rulerBtn');
-    
-    if (rulerActive) {
-        rulerBtn.classList.add('active');
-        rulerBtn.style.background = '#2196F3';
-        rulerBtn.style.color = 'white';
-        clearRuler();
-    } else {
-        rulerBtn.classList.remove('active');
-        rulerBtn.style.background = 'white';
-        rulerBtn.style.color = 'black';
-        clearRuler();
-    }
 }
 
 // Сохранение состояния в URL
@@ -379,6 +415,7 @@ async function restoreStateFromURL() {
         updateAddressList();
         updateStats();
         updateAptSum();
+        updatePlotLists();
         
         if (state.c && state.z) map.setCenter(state.c, state.z);
         else if (markers.length > 0) {
@@ -415,7 +452,7 @@ async function getMapLink() {
     }
 }
 
-// Функция для генерации SVG-маркера (с поддержкой цвета участка)
+// Функция для генерации SVG-маркера
 function getPinSvg(number, markerColor, isSelected = false) {
     let fillColor;
     
@@ -517,7 +554,6 @@ function highlightByPlot(plotNumber) {
     }
 }
 
-// Сброс подсветки
 function clearHighlight() {
     currentFilterPlot = null;
     
@@ -596,7 +632,6 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     return placemark;
 }
 
-// Переключение выбора
 function toggleMarkerSelection(index) {
     if (selectedMarkerIndexes.has(index)) {
         selectedMarkerIndexes.delete(index);
@@ -615,7 +650,6 @@ function toggleMarkerSelection(index) {
     updateAptSum();
 }
 
-// Обновление цвета маркера
 function updateMarkerColor(index) {
     if (!markers[index]) return;
     
@@ -627,7 +661,6 @@ function updateMarkerColor(index) {
     markers[index].options.set('iconImageHref', pinUrl);
 }
 
-// Обновление суммы квартир
 function updateAptSum() {
     let sum = 0;
     for (let index of selectedMarkerIndexes) {
@@ -638,7 +671,6 @@ function updateAptSum() {
     document.getElementById('selectedAptSum').textContent = sum;
 }
 
-// Выделить всё
 function selectAll() {
     for (let i = 0; i < addressData.length; i++) {
         if (addressData[i].geocodeSuccess && !selectedMarkerIndexes.has(i)) {
@@ -654,7 +686,6 @@ function selectAll() {
     updateAptSum();
 }
 
-// Снять выделение
 function deselectAll() {
     for (let index of selectedMarkerIndexes) {
         updateMarkerColor(index);
@@ -665,7 +696,6 @@ function deselectAll() {
     updateAptSum();
 }
 
-// Назначить участок выбранным
 function assignPlotToSelected() {
     if (selectedMarkerIndexes.size === 0) {
         alert('Сначала выберите адреса');
@@ -687,7 +717,6 @@ function assignPlotToSelected() {
             const oldPlot = markerData[index].plot;
             markerData[index].plot = selectedPlot;
             
-            // Если участок изменился, генерируем новый цвет
             if (oldPlot !== selectedPlot) {
                 // Цвет будет сгенерирован при следующем вызове getMarkerColor
             }
@@ -730,11 +759,11 @@ function assignPlotToSelected() {
     plotInput.value = '';
     updateAddressList();
     updateStats();
+    updatePlotLists();
     saveStateToURL();
     alert(`Назначен участок "${selectedPlot}" для ${assignedCount} адресов`);
 }
 
-// Обновление статистики
 function updateSelectionStats() {
     document.getElementById('selectedCount').textContent = selectedMarkerIndexes.size;
 }
@@ -753,7 +782,6 @@ function updateStats() {
     if (dupElement) dupElement.textContent = duplicates;
 }
 
-// Обновление списка адресов
 function updateAddressList() {
     const addressListDiv = document.getElementById('addressList');
     addressListDiv.innerHTML = '';
@@ -819,7 +847,6 @@ function updateAddressList() {
     updateSelectionStats();
 }
 
-// Очистка
 function clearAll() {
     if (clusterer) clusterer.removeAll();
     markers = [];
@@ -833,10 +860,10 @@ function clearAll() {
     updateStats();
     updateSelectionStats();
     updateAptSum();
+    updatePlotLists();
     if (!isRestoringFromURL) window.history.pushState({}, '', window.location.pathname);
 }
 
-// Экспорт в Excel
 function exportToExcel() {
     const exportData = [['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Количество квартир', 'Количество этажей', 'Количество подъездов', 'Назначенный участок', 'Дубликат']];
     
@@ -866,7 +893,7 @@ function exportToExcel() {
     alert(`Экспортировано ${exportData.length - 1} адресов`);
 }
 
-// Обработка Excel
+// Обработка Excel (с коррекцией адресов)
 async function processExcelFile(file) {
     const loadingDiv = document.getElementById('loading');
     const progressFill = document.getElementById('progressFill');
@@ -905,6 +932,15 @@ async function processExcelFile(file) {
             if (row.length > 0 && row[streetCol]) {
                 let apartments = 0, floors = 0, entrances = 0;
                 let plot = '';
+                let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
+                let house = String(row[houseCol] || '').trim();
+                
+                // КОРРЕКЦИЯ АДРЕСА: если в корпусе буква, переносим к номеру дома
+                if (building && /[А-Яа-я]$/.test(building) && !/[А-Яа-я]$/.test(house)) {
+                    const letter = building;
+                    house = house + letter;
+                    building = '';
+                }
                 
                 if (apartmentsCol !== -1 && row[apartmentsCol]) {
                     apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
@@ -923,8 +959,8 @@ async function processExcelFile(file) {
                     id: i,
                     city: cityCol !== -1 && row[cityCol] ? String(row[cityCol]).trim() : '',
                     street: String(row[streetCol] || '').trim(),
-                    house: String(row[houseCol] || '').trim(),
-                    building: buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '',
+                    house: house,
+                    building: building,
                     apartments: apartments,
                     floors: floors,
                     entrances: entrances,
@@ -1005,6 +1041,7 @@ async function processExcelFile(file) {
         updateAddressList();
         updateStats();
         updateAptSum();
+        updatePlotLists();
         
         if (markers.length > 0) {
             setTimeout(() => {
@@ -1039,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('deselectAllBtn').onclick = deselectAll;
     document.getElementById('getLinkBtn').onclick = getMapLink;
     document.getElementById('rulerBtn').onclick = toggleRuler;
+    document.getElementById('clearRulerBtn').onclick = clearRuler;
     
     document.getElementById('filterPlotBtn').onclick = () => {
         const plotNumber = document.getElementById('plotFilterInput').value.trim();
@@ -1052,7 +1090,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearHighlight();
     };
     
-    // Фильтр по этажам
     document.getElementById('applyFilterBtn').onclick = applyFloorsFilter;
     document.getElementById('resetFilterBtn').onclick = resetFloorsFilter;
     

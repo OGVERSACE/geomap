@@ -1,4 +1,4 @@
-// app.js - полная версия с уникальными цветами для участков
+// app.js - полная версия с уникальными цветами участков, линейкой, фильтром и снятием участка
 
 let map;
 let markers = [];
@@ -28,28 +28,27 @@ function getColorForPlot(plotName) {
     
     // Предопределённые цвета для участков 1-70
     const predefinedColors = {
-        '1': '#4CAF50',    '2': '#FF9800',    '3': '#9C27B0',    '4': '#00BCD4',    '5': '#E91E63',
-        '6': '#8BC34A',    '7': '#FF5722',    '8': '#673AB7',    '9': '#009688',    '10': '#FFC107',
-        '11': '#795548',   '12': '#607D8B',   '13': '#3F51B5',   '14': '#CDDC39',   '15': '#FF4081',
-        '16': '#7C4DFF',   '17': '#64FFDA',   '18': '#FF6E40',   '19': '#B2FF59',   '20': '#E040FB',
-        '21': '#FFD54F',   '22': '#CE93D8',   '23': '#80CBC4',   '24': '#FFAB91',   '25': '#BCAAA4',
-        '26': '#90CAF9',   '27': '#A5D6A7',   '28': '#F48FB1',   '29': '#FFF59D',   '30': '#B39DDB',
-        '31': '#F44336',   '32': '#FF7043',   '33': '#FFB74D',   '34': '#FFF176',   '35': '#AED581',
-        '36': '#4DB6AC',   '37': '#4FC3F7',   '38': '#7986CB',   '39': '#BA68C8',   '40': '#F06292',
-        '41': '#E57373',   '42': '#FFB74D',   '43': '#FFF176',   '44': '#AED581',   '45': '#4DB6AC',
-        '46': '#4FC3F7',   '47': '#7986CB',   '48': '#BA68C8',   '49': '#F06292',   '50': '#A1887F',
-        '51': '#E0E0E0',   '52': '#BDBDBD',   '53': '#9E9E9E',   '54': '#757575',   '55': '#616161',
-        '56': '#FBC02D',   '57': '#F57C00',   '58': '#E65100',   '59': '#827717',   '60': '#33691E',
-        '61': '#004D40',   '62': '#006064',   '63': '#0D47A1',   '64': '#1A237E',   '65': '#311B92',
-        '66': '#4A148C',   '67': '#880E4F',   '68': '#B71C1C',   '69': '#BF360C',   '70': '#3E2723'
+        '1': '#FF9800',    '2': '#9C27B0',    '3': '#00BCD4',    '4': '#E91E63',    '5': '#8BC34A',
+        '6': '#FF5722',    '7': '#673AB7',    '8': '#009688',    '9': '#FFC107',    '10': '#795548',
+        '11': '#607D8B',   '12': '#3F51B5',   '13': '#CDDC39',   '14': '#FF4081',   '15': '#7C4DFF',
+        '16': '#64FFDA',   '17': '#FF6E40',   '18': '#B2FF59',   '19': '#E040FB',   '20': '#FFD54F',
+        '21': '#CE93D8',   '22': '#80CBC4',   '23': '#FFAB91',   '24': '#BCAAA4',   '25': '#90CAF9',
+        '26': '#A5D6A7',   '27': '#F48FB1',   '28': '#FFF59D',   '29': '#B39DDB',   '30': '#F44336',
+        '31': '#FF7043',   '32': '#FFB74D',   '33': '#FFF176',   '34': '#AED581',   '35': '#4DB6AC',
+        '36': '#4FC3F7',   '37': '#7986CB',   '38': '#BA68C8',   '39': '#F06292',   '40': '#A1887F',
+        '41': '#E0E0E0',   '42': '#BDBDBD',   '43': '#9E9E9E',   '44': '#757575',   '45': '#616161',
+        '46': '#FBC02D',   '47': '#F57C00',   '48': '#E65100',   '49': '#827717',   '50': '#33691E',
+        '51': '#004D40',   '52': '#006064',   '53': '#0D47A1',   '54': '#1A237E',   '55': '#311B92',
+        '56': '#4A148C',   '57': '#880E4F',   '58': '#B71C1C',   '59': '#BF360C',   '60': '#3E2723',
+        '61': '#D81B60',   '62': '#F06292',   '63': '#BA68C8',   '64': '#9575CD',   '65': '#7986CB',
+        '66': '#64B5F6',   '67': '#4FC3F7',   '68': '#4DD0E1',   '69': '#4DB6AC',   '70': '#81C784'
     };
     
-    // Если участок - цифра от 1 до 70, берём из предопределённых
     if (predefinedColors[plotName]) {
         return predefinedColors[plotName];
     }
     
-    // Для остальных участков (1А, 13Б, Участок А и т.д.) генерируем цвет на основе хэша
+    // Для остальных участков генерируем цвет на основе хэша
     let hash = 0;
     for (let i = 0; i < plotName.length; i++) {
         hash = ((hash << 5) - hash) + plotName.charCodeAt(i);
@@ -59,7 +58,7 @@ function getColorForPlot(plotName) {
     return `hsl(${hue}, 65%, 55%)`;
 }
 
-// Функция для обновления списка участков в datalist (сортировка)
+// Функция для обновления списка участков в datalist
 function updatePlotLists() {
     const plots = new Set();
     for (const data of markerData) {
@@ -68,7 +67,6 @@ function updatePlotLists() {
         }
     }
     
-    // Сортируем: сначала цифры по возрастанию, потом остальные
     const sortedPlots = Array.from(plots).sort((a, b) => {
         const aNum = parseInt(a);
         const bNum = parseInt(b);
@@ -116,12 +114,11 @@ function getMarkerColor(index) {
         return plotColors.get(plotName);
     }
     
-    return '#9E9E9E'; // серый для адресов без участка
+    return '#4CAF50';
 }
 
 function shouldShowMarker(index) {
     if (currentFloorsFilter === 0) return true;
-    
     const floors = markerData[index]?.floors || 0;
     if (floors === 0) return true;
     return floors >= currentFloorsFilter;
@@ -132,46 +129,26 @@ function applyFloorsFilter() {
     currentFloorsFilter = parseInt(filterInput.value) || 0;
     
     for (let i = 0; i < markers.length; i++) {
-        const marker = markers[i];
-        if (marker) {
-            marker.options.set('visible', shouldShowMarker(i));
-        }
+        if (markers[i]) markers[i].options.set('visible', shouldShowMarker(i));
     }
-    
-    if (clusterer) {
-        clusterer.reload();
-    }
-    
+    if (clusterer) clusterer.reload();
     updateAddressList();
 }
 
 function resetFloorsFilter() {
     document.getElementById('floorsFilter').value = 0;
     currentFloorsFilter = 0;
-    
     for (let i = 0; i < markers.length; i++) {
-        const marker = markers[i];
-        if (marker) {
-            marker.options.set('visible', true);
-        }
+        if (markers[i]) markers[i].options.set('visible', true);
     }
-    
-    if (clusterer) {
-        clusterer.reload();
-    }
-    
+    if (clusterer) clusterer.reload();
     updateAddressList();
 }
 
 // Линейка
 function clearRuler() {
-    if (rulerLine) {
-        map.geoObjects.remove(rulerLine);
-        rulerLine = null;
-    }
-    for (let pm of rulerPlacemarks) {
-        map.geoObjects.remove(pm);
-    }
+    if (rulerLine) { map.geoObjects.remove(rulerLine); rulerLine = null; }
+    for (let pm of rulerPlacemarks) { map.geoObjects.remove(pm); }
     rulerPlacemarks = [];
     rulerPoints = [];
     document.getElementById('distanceInfo').style.display = 'none';
@@ -180,24 +157,16 @@ function clearRuler() {
 
 function updateRuler() {
     if (rulerPoints.length < 2) return;
-    
-    if (rulerLine) {
-        map.geoObjects.remove(rulerLine);
-    }
+    if (rulerLine) map.geoObjects.remove(rulerLine);
     
     rulerLine = new ymaps.Polyline(rulerPoints, {}, {
-        strokeColor: '#2196F3',
-        strokeWidth: 4,
-        strokeOpacity: 0.8
+        strokeColor: '#2196F3', strokeWidth: 4, strokeOpacity: 0.8
     });
     map.geoObjects.add(rulerLine);
     
     let totalDistance = 0;
     for (let i = 1; i < rulerPoints.length; i++) {
-        const p1 = rulerPoints[i-1];
-        const p2 = rulerPoints[i];
-        const distance = ymaps.coordSystem.geo.getDistance(p1, p2);
-        totalDistance += distance;
+        totalDistance += ymaps.coordSystem.geo.getDistance(rulerPoints[i-1], rulerPoints[i]);
     }
     
     const infoDiv = document.getElementById('distanceInfo');
@@ -212,23 +181,14 @@ function updateRuler() {
 
 function addRulerPoint(coords) {
     rulerPoints.push(coords);
-    
-    const placemark = new ymaps.Placemark(coords, {
-        balloonContent: `Точка ${rulerPoints.length}`
-    }, {
-        preset: 'islands#blueIcon',
-        draggable: true
+    const placemark = new ymaps.Placemark(coords, { balloonContent: `Точка ${rulerPoints.length}` }, {
+        preset: 'islands#blueIcon', draggable: true
     });
     
     placemark.events.add('dragend', function() {
-        const newCoords = placemark.geometry.getCoordinates();
         const idx = rulerPlacemarks.indexOf(placemark);
-        if (idx !== -1) {
-            rulerPoints[idx] = newCoords;
-            updateRuler();
-        }
+        if (idx !== -1) { rulerPoints[idx] = placemark.geometry.getCoordinates(); updateRuler(); }
     });
-    
     placemark.events.add('contextmenu', function(e) {
         e.preventDefault();
         const idx = rulerPlacemarks.indexOf(placemark);
@@ -237,24 +197,18 @@ function addRulerPoint(coords) {
             rulerPlacemarks.splice(idx, 1);
             rulerPoints.splice(idx, 1);
             updateRuler();
-            if (rulerPoints.length === 0) {
-                clearRuler();
-            }
+            if (rulerPoints.length === 0) clearRuler();
         }
     });
     
     map.geoObjects.add(placemark);
     rulerPlacemarks.push(placemark);
-    
-    if (rulerPoints.length >= 2) {
-        updateRuler();
-    }
+    if (rulerPoints.length >= 2) updateRuler();
 }
 
 function toggleRuler() {
     rulerActive = !rulerActive;
     const rulerBtn = document.getElementById('rulerBtn');
-    
     if (rulerActive) {
         rulerBtn.classList.add('active');
         rulerBtn.style.background = '#2196F3';
@@ -270,11 +224,7 @@ function toggleRuler() {
 // Инициализация карты
 function initMap() {
     ymaps.ready(function() {
-        map = new ymaps.Map('map', {
-            center: [55.751244, 37.618423],
-            zoom: 10,
-            controls: ['zoomControl', 'fullscreenControl']
-        });
+        map = new ymaps.Map('map', { center: [55.751244, 37.618423], zoom: 10, controls: ['zoomControl', 'fullscreenControl'] });
         mapReady = true;
         
         clusterer = new ymaps.Clusterer({
@@ -287,18 +237,15 @@ function initMap() {
         clusterer.events.add('click', function(e) {
             const cluster = e.get('target');
             const geoObjects = cluster.properties.get('geoObjects');
-            
             if (!geoObjects || geoObjects.length === 0) return;
             
             const indexesToSelect = [];
             for (let i = 0; i < geoObjects.length; i++) {
-                const marker = geoObjects[i];
-                const markerIndex = marker.properties.get('markerIndex');
+                const markerIndex = geoObjects[i].properties.get('markerIndex');
                 if (markerIndex !== undefined && addressData[markerIndex] && addressData[markerIndex].geocodeSuccess) {
                     indexesToSelect.push(markerIndex);
                 }
             }
-            
             if (indexesToSelect.length === 0) return;
             
             for (let idx of indexesToSelect) {
@@ -310,7 +257,6 @@ function initMap() {
                     if (markers[idx]) markers[idx].options.set('iconImageHref', pinUrl);
                 }
             }
-            
             updateAddressList();
             updateSelectionStats();
             updateAptSum();
@@ -320,57 +266,35 @@ function initMap() {
             msg.style.cssText = 'position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#4CAF50; color:white; padding:8px 16px; border-radius:8px; z-index:10000; font-size:14px;';
             document.body.appendChild(msg);
             setTimeout(() => msg.remove(), 2000);
-            
             e.stopPropagation();
         });
         
         map.geoObjects.add(clusterer);
         
-        map.events.add('click', function(e) {
-            if (!rulerActive) return;
-            const coords = e.get('coords');
-            addRulerPoint(coords);
-        });
-        
-        map.events.add(['boundschange', 'actionend'], function() {
-            if (!isRestoringFromURL) saveStateToURL();
-        });
+        map.events.add('click', function(e) { if (rulerActive) addRulerPoint(e.get('coords')); });
+        map.events.add(['boundschange', 'actionend'], function() { if (!isRestoringFromURL) saveStateToURL(); });
         
         restoreStateFromURL();
         console.log('Карта готова');
     });
 }
 
-// Сохранение состояния в URL
 function saveStateToURL() {
     if (!mapReady || !map) return;
-    
     const center = map.getCenter();
     const zoom = map.getZoom();
     const pointsData = [];
-    
     for (let i = 0; i < markerData.length; i++) {
         const data = markerData[i];
         if (data && data.lat && data.lon) {
             pointsData.push({
-                i: data.id || i + 1,
-                a: data.lat,
-                o: data.lon,
-                d: data.address,
-                oA: data.originalAddress,
-                pl: data.plot || '',
-                ap: data.apartments || 0,
-                f: data.floors || 0,
-                e: data.entrances || 0,
-                s: addressData[i]?.street,
-                h: addressData[i]?.house,
-                b: addressData[i]?.building,
-                ci: addressData[i]?.city,
-                dU: data.isDuplicate || false
+                i: data.id || i + 1, a: data.lat, o: data.lon, d: data.address, oA: data.originalAddress,
+                pl: data.plot || '', ap: data.apartments || 0, f: data.floors || 0, e: data.entrances || 0,
+                s: addressData[i]?.street, h: addressData[i]?.house, b: addressData[i]?.building,
+                ci: addressData[i]?.city, dU: data.isDuplicate || false
             });
         }
     }
-    
     const state = { c: [center[0], center[1]], z: zoom, p: pointsData };
     const stateStr = JSON.stringify(state);
     const encodedState = btoa(encodeURIComponent(stateStr));
@@ -378,62 +302,39 @@ function saveStateToURL() {
     window.history.pushState({}, '', newUrl);
 }
 
-// Восстановление состояния из URL
 async function restoreStateFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const encodedState = urlParams.get('state');
     if (!encodedState) return;
-    
     isRestoringFromURL = true;
-    
     try {
         const stateStr = decodeURIComponent(atob(encodedState));
         const state = JSON.parse(stateStr);
         if (!state.p || state.p.length === 0) return;
-        
         const points = state.p;
         clearAll();
-        
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             addressData.push({
-                city: point.ci || '',
-                street: point.s || '',
-                house: point.h || '',
-                building: point.b || '',
-                apartments: point.ap || 0,
-                floors: point.f || 0,
-                entrances: point.e || 0,
-                geocodeSuccess: true,
-                geocodeResult: { address: point.d, lat: point.a, lon: point.o }
+                city: point.ci || '', street: point.s || '', house: point.h || '', building: point.b || '',
+                apartments: point.ap || 0, floors: point.f || 0, entrances: point.e || 0,
+                geocodeSuccess: true, geocodeResult: { address: point.d, lat: point.a, lon: point.o }
             });
             markerData.push({
-                id: point.i || i + 1,
-                address: point.d,
-                originalAddress: point.oA,
-                plot: point.pl || null,
-                apartments: point.ap || 0,
-                floors: point.f || 0,
-                entrances: point.e || 0,
-                lat: point.a,
-                lon: point.o,
-                isDuplicate: point.dU || false
+                id: point.i || i + 1, address: point.d, originalAddress: point.oA, plot: point.pl || null,
+                apartments: point.ap || 0, floors: point.f || 0, entrances: point.e || 0,
+                lat: point.a, lon: point.o, isDuplicate: point.dU || false
             });
         }
-        
         await new Promise(resolve => setTimeout(resolve, 200));
-        
         for (let i = 0; i < points.length; i++) {
-            const point = points[i];
             const isDup = markerData[i]?.isDuplicate || false;
-            addMarker(point.a, point.o, point.d, point.oA, i, point.i || i + 1, isDup);
+            addMarker(points[i].a, points[i].o, points[i].d, points[i].oA, i, points[i].i || i + 1, isDup);
         }
-        
         updateAddressList();
         updateStats();
         updateAptSum();
         updatePlotLists();
-        
         if (state.c && state.z) map.setCenter(state.c, state.z);
         else if (markers.length > 0) {
             setTimeout(() => {
@@ -445,53 +346,30 @@ async function restoreStateFromURL() {
                 }
             }, 300);
         }
-    } catch (error) {
-        console.error('Ошибка восстановления:', error);
-    } finally {
-        isRestoringFromURL = false;
-    }
+    } catch (error) { console.error('Ошибка восстановления:', error); }
+    finally { isRestoringFromURL = false; }
 }
 
-// Получение ссылки
 async function getMapLink() {
-    if (!mapReady || !map) {
-        alert('Карта ещё не загружена');
-        return;
-    }
+    if (!mapReady || !map) { alert('Карта ещё не загружена'); return; }
     try {
         saveStateToURL();
         const longUrl = window.location.href;
         await navigator.clipboard.writeText(longUrl);
         alert(`✅ Ссылка скопирована!\n\nДлина: ${longUrl.length} символов`);
     } catch (error) {
-        const longUrl = window.location.href;
-        prompt('Скопируйте ссылку вручную:', longUrl);
+        prompt('Скопируйте ссылку вручную:', window.location.href);
     }
 }
 
-// Функция для генерации SVG-маркера
 function getPinSvg(number, markerColor, isSelected = false) {
-    let fillColor;
-    
-    if (isSelected) {
-        fillColor = '#2196F3';
-    } else if (markerColor && markerColor.startsWith('#')) {
-        fillColor = markerColor;
-    } else if (markerColor && markerColor.startsWith('hsl')) {
-        fillColor = markerColor;
-    } else {
-        fillColor = '#4CAF50';
-    }
-    
+    let fillColor = isSelected ? '#2196F3' : (markerColor || '#4CAF50');
     const shadowFilter = isSelected ? 
         '<filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#2196F3" flood-opacity="0.8"/></filter>' : 
         '<filter id="shadow"><feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.4"/></filter>';
-    
     return `<?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="55" height="55">
-    <defs>
-        ${shadowFilter}
-    </defs>
+    <defs>${shadowFilter}</defs>
     <g filter="url(#shadow)">
         <path fill="${fillColor}" d="M269.061,484.131c-3.185,8.461-11.255,14.049-20.273,14.089
             c-9.028,0.029-17.147-5.501-20.39-13.913c-44.034-114.321-132.63-261.205-132.63-330.964C95.767,68.801,164.539,0,249.12,0
@@ -500,148 +378,98 @@ function getPinSvg(number, markerColor, isSelected = false) {
             C369.351,83.105,315.42,29.164,249.12,29.164z"/>
         <circle cx="249" cy="150" r="130" fill="white" stroke="rgba(0,0,0,0.15)" stroke-width="2"/>
         <circle cx="249" cy="150" r="130" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="4"/>
-        <text x="249" y="205" font-size="160" font-weight="bold" 
-              fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
+        <text x="249" y="205" font-size="160" font-weight="bold" fill="#222222" text-anchor="middle" font-family="Arial, sans-serif">${number}</text>
     </g>
 </svg>`;
 }
 
-// Подсветка по номеру участка
 function highlightByPlot(plotNumber) {
     currentFilterPlot = plotNumber;
-    
-    for (let index of selectedMarkerIndexes) {
-        const marker = markers[index];
-        if (marker) {
-            const markerColor = getMarkerColor(index);
-            const number = markerData[index]?.id || index + 1;
-            const pinSvg = getPinSvg(number, markerColor, false);
-            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-            marker.options.set('iconImageHref', pinUrl);
+    for (let idx of selectedMarkerIndexes) {
+        if (markers[idx]) {
+            const color = getMarkerColor(idx);
+            const pinSvg = getPinSvg(markerData[idx]?.id || idx + 1, color, false);
+            markers[idx].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
         }
     }
     selectedMarkerIndexes.clear();
-    
     let foundCount = 0;
     for (let i = 0; i < markerData.length; i++) {
-        const marker = markers[i];
-        if (!marker) continue;
-        
+        if (!markers[i]) continue;
         const hasPlot = markerData[i] && markerData[i].plot;
         const number = markerData[i]?.id || i + 1;
-        
         if (plotNumber && hasPlot && markerData[i].plot === plotNumber) {
             const pinSvg = getPinSvg(number, '#2196F3', true);
-            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-            marker.options.set('iconImageHref', pinUrl);
+            markers[i].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
             selectedMarkerIndexes.add(i);
             foundCount++;
         } else {
-            const markerColor = getMarkerColor(i);
-            const pinSvg = getPinSvg(number, markerColor, false);
-            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-            marker.options.set('iconImageHref', pinUrl);
+            const color = getMarkerColor(i);
+            const pinSvg = getPinSvg(number, color, false);
+            markers[i].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
         }
     }
-    
     updateAddressList();
     updateSelectionStats();
     updateAptSum();
-    
-    const clearBtn = document.getElementById('clearFilterBtn');
-    if (clearBtn) {
-        clearBtn.style.display = plotNumber ? 'inline-block' : 'none';
-    }
-    
+    document.getElementById('clearFilterBtn').style.display = plotNumber ? 'inline-block' : 'none';
     if (foundCount > 0) {
         for (let i = 0; i < markers.length; i++) {
             if (selectedMarkerIndexes.has(i)) {
-                const coords = markers[i].geometry.getCoordinates();
-                map.setCenter(coords, 14);
+                map.setCenter(markers[i].geometry.getCoordinates(), 14);
                 break;
             }
         }
     }
-    
-    if (plotNumber) {
-        alert(`🔍 Найдено ${foundCount} адресов на участке "${plotNumber}"`);
-    }
+    if (plotNumber) alert(`🔍 Найдено ${foundCount} адресов на участке "${plotNumber}"`);
 }
 
 function clearHighlight() {
     currentFilterPlot = null;
-    
-    for (let index of selectedMarkerIndexes) {
-        const marker = markers[index];
-        if (marker) {
-            const markerColor = getMarkerColor(index);
-            const number = markerData[index]?.id || index + 1;
-            const pinSvg = getPinSvg(number, markerColor, false);
-            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-            marker.options.set('iconImageHref', pinUrl);
+    for (let idx of selectedMarkerIndexes) {
+        if (markers[idx]) {
+            const color = getMarkerColor(idx);
+            const pinSvg = getPinSvg(markerData[idx]?.id || idx + 1, color, false);
+            markers[idx].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
         }
     }
     selectedMarkerIndexes.clear();
-    
     document.getElementById('plotFilterInput').value = '';
     updateAddressList();
     updateSelectionStats();
     updateAptSum();
-    
-    const clearBtn = document.getElementById('clearFilterBtn');
-    if (clearBtn) {
-        clearBtn.style.display = 'none';
-    }
+    document.getElementById('clearFilterBtn').style.display = 'none';
 }
 
-// Добавление маркера
 function addMarker(lat, lon, address, originalAddress, index, number, isDuplicate = false) {
     if (!mapReady || !map) return null;
-    
     const hasPlot = markerData[index] && markerData[index].plot && markerData[index].plot !== '';
     const aptCount = markerData[index]?.apartments || 0;
     const floorsCount = markerData[index]?.floors || 0;
     const entrancesCount = markerData[index]?.entrances || 0;
-    
     const markerColor = getMarkerColor(index);
-    const plotDisplay = markerData[index] && markerData[index].plot ? markerData[index].plot : '';
+    const plotDisplay = markerData[index]?.plot || '';
     const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
     
     let balloonHtml = `<strong>📍 №${number}</strong><br><strong>${address}</strong><br>Исходный адрес: ${originalAddress}<br><strong>Участок: ${plotDisplay || 'не назначен'}</strong><br><strong>Квартир: ${aptCount}</strong>`;
-    
-    if (floorsCount > 0) {
-        balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
-    }
-    if (entrancesCount > 0) {
-        balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
-    }
+    if (floorsCount > 0) balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
+    if (entrancesCount > 0) balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
     balloonHtml += duplicateWarning;
     
-    let hintText = `№${number}: ${originalAddress}${hasPlot ? ' [уч.' + plotDisplay + ']' : ''} (кв:${aptCount}`;
+    let hintText = `№${number}: ${originalAddress}${hasPlot ? ` [уч.${plotDisplay}]` : ''} (кв:${aptCount}`;
     if (floorsCount > 0) hintText += `, эт:${floorsCount}`;
     if (entrancesCount > 0) hintText += `, п:${entrancesCount}`;
     hintText += `)${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`;
     
     const pinSvg = getPinSvg(number, markerColor, false);
-    const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-    
-    const placemark = new ymaps.Placemark([lat, lon], {
-        balloonContent: balloonHtml,
-        hintContent: hintText
-    }, {
-        iconLayout: 'default#image',
-        iconImageHref: pinUrl,
-        iconImageSize: [55, 55],
-        iconImageOffset: [-27, -55],
-        balloonMaxWidth: 350
+    const placemark = new ymaps.Placemark([lat, lon], { balloonContent: balloonHtml, hintContent: hintText }, {
+        iconLayout: 'default#image', iconImageHref: 'data:image/svg+xml,' + encodeURIComponent(pinSvg),
+        iconImageSize: [55, 55], iconImageOffset: [-27, -55], balloonMaxWidth: 350
     });
-    
     placemark.properties.set('markerIndex', index);
     placemark.events.add('click', () => toggleMarkerSelection(index));
-    
     clusterer.add(placemark);
     markers.push(placemark);
-    
     if (!isRestoringFromURL) saveStateToURL();
     return placemark;
 }
@@ -653,10 +481,8 @@ function toggleMarkerSelection(index) {
     } else {
         selectedMarkerIndexes.add(index);
         if (markers[index]) {
-            const number = markerData[index]?.id || index + 1;
-            const pinSvg = getPinSvg(number, '#2196F3', true);
-            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-            markers[index].options.set('iconImageHref', pinUrl);
+            const pinSvg = getPinSvg(markerData[index]?.id || index + 1, '#2196F3', true);
+            markers[index].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
         }
     }
     updateAddressList();
@@ -666,21 +492,15 @@ function toggleMarkerSelection(index) {
 
 function updateMarkerColor(index) {
     if (!markers[index]) return;
-    
-    const markerColor = getMarkerColor(index);
-    const number = markerData[index]?.id || index + 1;
-    
-    const pinSvg = getPinSvg(number, markerColor, false);
-    const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-    markers[index].options.set('iconImageHref', pinUrl);
+    const color = getMarkerColor(index);
+    const pinSvg = getPinSvg(markerData[index]?.id || index + 1, color, false);
+    markers[index].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
 }
 
 function updateAptSum() {
     let sum = 0;
-    for (let index of selectedMarkerIndexes) {
-        if (markerData[index] && markerData[index].apartments) {
-            sum += parseInt(markerData[index].apartments) || 0;
-        }
+    for (let idx of selectedMarkerIndexes) {
+        sum += parseInt(markerData[idx]?.apartments) || 0;
     }
     document.getElementById('selectedAptSum').textContent = sum;
 }
@@ -689,10 +509,8 @@ function selectAll() {
     for (let i = 0; i < addressData.length; i++) {
         if (addressData[i].geocodeSuccess && !selectedMarkerIndexes.has(i)) {
             selectedMarkerIndexes.add(i);
-            const number = markerData[i]?.id || i + 1;
-            const pinSvg = getPinSvg(number, '#2196F3', true);
-            const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
-            if (markers[i]) markers[i].options.set('iconImageHref', pinUrl);
+            const pinSvg = getPinSvg(markerData[i]?.id || i + 1, '#2196F3', true);
+            if (markers[i]) markers[i].options.set('iconImageHref', 'data:image/svg+xml,' + encodeURIComponent(pinSvg));
         }
     }
     updateAddressList();
@@ -701,9 +519,7 @@ function selectAll() {
 }
 
 function deselectAll() {
-    for (let index of selectedMarkerIndexes) {
-        updateMarkerColor(index);
-    }
+    for (let idx of selectedMarkerIndexes) updateMarkerColor(idx);
     selectedMarkerIndexes.clear();
     updateAddressList();
     updateSelectionStats();
@@ -711,58 +527,39 @@ function deselectAll() {
 }
 
 function assignPlotToSelected() {
-    if (selectedMarkerIndexes.size === 0) {
-        alert('Сначала выберите адреса');
-        return;
-    }
-    
+    if (selectedMarkerIndexes.size === 0) { alert('Сначала выберите адреса'); return; }
     const plotInput = document.getElementById('plotInput');
-    let selectedPlot = plotInput.value.trim();
-    
-    if (!selectedPlot) {
-        alert('Введите номер участка');
-        return;
-    }
+    const selectedPlot = plotInput.value.trim();
+    if (!selectedPlot) { alert('Введите номер участка'); return; }
     
     let assignedCount = 0;
-    
-    for (let index of selectedMarkerIndexes) {
-        if (markerData[index] && addressData[index].geocodeSuccess) {
-            markerData[index].plot = selectedPlot;
-            updateMarkerColor(index);
-            
-            const data = markerData[index];
+    for (let idx of selectedMarkerIndexes) {
+        if (markerData[idx] && addressData[idx].geocodeSuccess) {
+            markerData[idx].plot = selectedPlot;
+            updateMarkerColor(idx);
+            const data = markerData[idx];
             const aptCount = data.apartments || 0;
             const floorsCount = data.floors || 0;
             const entrancesCount = data.entrances || 0;
             const isDuplicate = data.isDuplicate || false;
             const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
             
-            let balloonHtml = `<strong>📍 №${data.id || index + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong><br><strong>Квартир: ${aptCount}</strong>`;
-            
-            if (floorsCount > 0) {
-                balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
-            }
-            if (entrancesCount > 0) {
-                balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
-            }
+            let balloonHtml = `<strong>📍 №${data.id || idx + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: ${selectedPlot}</strong><br><strong>Квартир: ${aptCount}</strong>`;
+            if (floorsCount > 0) balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
+            if (entrancesCount > 0) balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
             balloonHtml += duplicateWarning;
             
-            let hintText = `№${data.id || index + 1}: ${data.originalAddress} [уч.${selectedPlot}] (кв:${aptCount}`;
+            let hintText = `№${data.id || idx + 1}: ${data.originalAddress} [уч.${selectedPlot}] (кв:${aptCount}`;
             if (floorsCount > 0) hintText += `, эт:${floorsCount}`;
             if (entrancesCount > 0) hintText += `, п:${entrancesCount}`;
             hintText += `)${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`;
             
-            if (markers[index]) {
-                markers[index].properties.set({
-                    balloonContent: balloonHtml,
-                    hintContent: hintText
-                });
+            if (markers[idx]) {
+                markers[idx].properties.set({ balloonContent: balloonHtml, hintContent: hintText });
             }
             assignedCount++;
         }
     }
-    
     deselectAll();
     plotInput.value = '';
     updateAddressList();
@@ -770,6 +567,44 @@ function assignPlotToSelected() {
     updatePlotLists();
     saveStateToURL();
     alert(`Назначен участок "${selectedPlot}" для ${assignedCount} адресов`);
+}
+
+// Снять участок с выбранных адресов
+function removePlotFromSelected() {
+    if (selectedMarkerIndexes.size === 0) { alert('Сначала выберите адреса'); return; }
+    let removedCount = 0;
+    for (let idx of selectedMarkerIndexes) {
+        if (markerData[idx] && addressData[idx].geocodeSuccess) {
+            markerData[idx].plot = null;
+            updateMarkerColor(idx);
+            const data = markerData[idx];
+            const aptCount = data.apartments || 0;
+            const floorsCount = data.floors || 0;
+            const entrancesCount = data.entrances || 0;
+            const isDuplicate = data.isDuplicate || false;
+            const duplicateWarning = isDuplicate ? '<br><span style="color: red;">⚠️ ДУБЛИКАТ</span>' : '';
+            
+            let balloonHtml = `<strong>📍 №${data.id || idx + 1}</strong><br><strong>${data.address}</strong><br>Исходный адрес: ${data.originalAddress}<br><strong>Участок: не назначен</strong><br><strong>Квартир: ${aptCount}</strong>`;
+            if (floorsCount > 0) balloonHtml += `<br><strong>Этажей: ${floorsCount}</strong>`;
+            if (entrancesCount > 0) balloonHtml += `<br><strong>Подъездов: ${entrancesCount}</strong>`;
+            balloonHtml += duplicateWarning;
+            
+            let hintText = `№${data.id || idx + 1}: ${data.originalAddress} (кв:${aptCount}`;
+            if (floorsCount > 0) hintText += `, эт:${floorsCount}`;
+            if (entrancesCount > 0) hintText += `, п:${entrancesCount}`;
+            hintText += `)${isDuplicate ? ' [ДУБЛИКАТ]' : ''}`;
+            
+            if (markers[idx]) {
+                markers[idx].properties.set({ balloonContent: balloonHtml, hintContent: hintText });
+            }
+            removedCount++;
+        }
+    }
+    updateAddressList();
+    updateStats();
+    updatePlotLists();
+    saveStateToURL();
+    alert(`✅ Участок снят с ${removedCount} адресов`);
 }
 
 function updateSelectionStats() {
@@ -782,7 +617,6 @@ function updateStats() {
     const assigned = markerData.filter(m => m && m.plot && m.plot !== '').length;
     const onMap = markers.length;
     const duplicates = markerData.filter(m => m && m.isDuplicate).length;
-    
     document.getElementById('totalCount').textContent = total;
     document.getElementById('mapCount').textContent = onMap;
     document.getElementById('assignedCount').textContent = assigned;
@@ -793,7 +627,6 @@ function updateStats() {
 function updateAddressList() {
     const addressListDiv = document.getElementById('addressList');
     addressListDiv.innerHTML = '';
-    
     addressData.forEach((item, index) => {
         if (!item.geocodeSuccess) {
             const div = document.createElement('div');
@@ -802,23 +635,21 @@ function updateAddressList() {
             addressListDiv.appendChild(div);
             return;
         }
-        
         const markerInfo = markerData[index];
         const isSelected = selectedMarkerIndexes.has(index);
         const isDuplicate = markerInfo?.isDuplicate || false;
-        const plotText = markerInfo && markerInfo.plot ? ` → уч. ${markerInfo.plot}` : '';
+        const plotText = markerInfo?.plot ? ` → уч. ${markerInfo.plot}` : '';
         const duplicateText = isDuplicate ? ' ⚠️ ДУБЛИКАТ' : '';
         const itemNumber = markerInfo?.id || index + 1;
         const aptCount = markerInfo?.apartments || 0;
         const floorsCount = markerInfo?.floors || 0;
         const entrancesCount = markerInfo?.entrances || 0;
-        
-        const isHighlighted = currentFilterPlot && markerInfo && markerInfo.plot === currentFilterPlot;
+        const isHighlighted = currentFilterPlot && markerInfo?.plot === currentFilterPlot;
         
         let paramsText = `🏢 Квартир: ${aptCount}`;
         if (floorsCount > 0) paramsText += ` | 🏗️ Этажей: ${floorsCount}`;
         if (entrancesCount > 0) paramsText += ` | 🚪 Подъездов: ${entrancesCount}`;
-        paramsText += ` | 📌 Участок: ${markerInfo && markerInfo.plot ? markerInfo.plot : 'не назначен'}`;
+        paramsText += ` | 📌 Участок: ${markerInfo?.plot || 'не назначен'}`;
         
         const div = document.createElement('div');
         let className = `address-item success ${isSelected ? 'selected' : ''}`;
@@ -837,19 +668,14 @@ function updateAddressList() {
                 </div>
             </div>
         `;
-        
         const checkbox = div.querySelector('.address-checkbox');
         checkbox.onclick = (e) => { e.stopPropagation(); toggleMarkerSelection(index); };
-        
-        const contentDiv = div.querySelector('.address-content');
-        contentDiv.onclick = () => {
+        div.querySelector('.address-content').onclick = () => {
             if (markers[index]) {
-                const coords = markers[index].geometry.getCoordinates();
-                map.setCenter(coords, 16);
+                map.setCenter(markers[index].geometry.getCoordinates(), 16);
                 markers[index].balloon.open();
             }
         };
-        
         addressListDiv.appendChild(div);
     });
     updateSelectionStats();
@@ -875,25 +701,15 @@ function clearAll() {
 
 function exportToExcel() {
     const exportData = [['№', 'Статус', 'Город', 'Улица', 'Номер дома', 'Корпус', 'Найденный адрес', 'Количество квартир', 'Количество этажей', 'Количество подъездов', 'Назначенный участок', 'Дубликат']];
-    
     addressData.forEach((item, index) => {
         const markerInfo = markerData[index];
         const number = markerInfo?.id || index + 1;
         if (item.geocodeSuccess) {
-            exportData.push([
-                number, 'Найден', item.city || '', item.street, item.house, item.building || '',
-                item.geocodeResult.address,
-                markerInfo?.apartments || 0,
-                markerInfo?.floors || 0,
-                markerInfo?.entrances || 0,
-                markerInfo?.plot || '',
-                markerInfo?.isDuplicate ? 'Да' : ''
-            ]);
+            exportData.push([number, 'Найден', item.city || '', item.street, item.house, item.building || '', item.geocodeResult.address, markerInfo?.apartments || 0, markerInfo?.floors || 0, markerInfo?.entrances || 0, markerInfo?.plot || '', markerInfo?.isDuplicate ? 'Да' : '']);
         } else {
             exportData.push([number, 'Не найден', item.city || '', item.street, item.house, item.building || '', '', item.apartments || 0, item.floors || 0, item.entrances || 0, '', '']);
         }
     });
-    
     const ws = XLSX.utils.aoa_to_sheet(exportData);
     ws['!cols'] = [{wch:5},{wch:10},{wch:15},{wch:25},{wch:12},{wch:10},{wch:50},{wch:12},{wch:15},{wch:15},{wch:20},{wch:10}];
     const wb = XLSX.utils.book_new();
@@ -902,15 +718,12 @@ function exportToExcel() {
     alert(`Экспортировано ${exportData.length - 1} адресов`);
 }
 
-// Обработка Excel (с коррекцией адресов)
 async function processExcelFile(file) {
     const loadingDiv = document.getElementById('loading');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
-    
     loadingDiv.style.display = 'block';
     clearAll();
-    
     try {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
@@ -919,9 +732,7 @@ async function processExcelFile(file) {
         if (rows.length < 2) throw new Error('Файл должен содержать заголовки и данные');
         
         const headers = rows[0];
-        let cityCol = -1, streetCol = -1, houseCol = -1, buildingCol = -1;
-        let apartmentsCol = -1, floorsCol = -1, entrancesCol = -1, plotCol = -1;
-        
+        let cityCol = -1, streetCol = -1, houseCol = -1, buildingCol = -1, apartmentsCol = -1, floorsCol = -1, entrancesCol = -1, plotCol = -1;
         headers.forEach((header, idx) => {
             const h = String(header).toLowerCase();
             if (h.includes('город') || h === 'city') cityCol = idx;
@@ -939,42 +750,18 @@ async function processExcelFile(file) {
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             if (row.length > 0 && row[streetCol]) {
-                let apartments = 0, floors = 0, entrances = 0;
-                let plot = '';
+                let apartments = 0, floors = 0, entrances = 0, plot = '';
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
-                
-                // Коррекция адреса: если в корпусе буква, переносим к номеру дома
                 if (building && /[А-Яа-я]$/.test(building) && !/[А-Яа-я]$/.test(house)) {
-                    const letter = building;
-                    house = house + letter;
+                    house = house + building;
                     building = '';
                 }
-                
-                if (apartmentsCol !== -1 && row[apartmentsCol]) {
-                    apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
-                }
-                if (floorsCol !== -1 && row[floorsCol]) {
-                    floors = parseInt(String(row[floorsCol]).replace(/[^\d]/g, '')) || 0;
-                }
-                if (entrancesCol !== -1 && row[entrancesCol]) {
-                    entrances = parseInt(String(row[entrancesCol]).replace(/[^\d]/g, '')) || 0;
-                }
-                if (plotCol !== -1 && row[plotCol]) {
-                    plot = String(row[plotCol]).trim();
-                }
-                
-                addresses.push({
-                    id: i,
-                    city: cityCol !== -1 && row[cityCol] ? String(row[cityCol]).trim() : '',
-                    street: String(row[streetCol] || '').trim(),
-                    house: house,
-                    building: building,
-                    apartments: apartments,
-                    floors: floors,
-                    entrances: entrances,
-                    plot: plot
-                });
+                if (apartmentsCol !== -1 && row[apartmentsCol]) apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
+                if (floorsCol !== -1 && row[floorsCol]) floors = parseInt(String(row[floorsCol]).replace(/[^\d]/g, '')) || 0;
+                if (entrancesCol !== -1 && row[entrancesCol]) entrances = parseInt(String(row[entrancesCol]).replace(/[^\d]/g, '')) || 0;
+                if (plotCol !== -1 && row[plotCol]) plot = String(row[plotCol]).trim();
+                addresses.push({ id: i, city: cityCol !== -1 && row[cityCol] ? String(row[cityCol]).trim() : '', street: String(row[streetCol] || '').trim(), house: house, building: building, apartments: apartments, floors: floors, entrances: entrances, plot: plot });
             }
         }
         
@@ -991,18 +778,7 @@ async function processExcelFile(file) {
                 if (result.success) {
                     const originalAddress = `${addr.street}, ${addr.house}${addr.building ? ` корп.${addr.building}` : ''}`;
                     addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result });
-                    markerData.push({
-                        id: addr.id,
-                        address: result.address,
-                        originalAddress: originalAddress,
-                        plot: addr.plot || null,
-                        apartments: addr.apartments,
-                        floors: addr.floors,
-                        entrances: addr.entrances,
-                        lat: result.lat,
-                        lon: result.lon,
-                        isDuplicate: false
-                    });
+                    markerData.push({ id: addr.id, address: result.address, originalAddress: originalAddress, plot: addr.plot || null, apartments: addr.apartments, floors: addr.floors, entrances: addr.entrances, lat: result.lat, lon: result.lon, isDuplicate: false });
                 } else {
                     addressData.push({ ...addr, geocodeSuccess: false, error: result.error || 'Не найден' });
                     markerData.push(null);
@@ -1014,7 +790,6 @@ async function processExcelFile(file) {
             await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        // Находим дубликаты
         const addressKeyMap = new Map();
         for (let i = 0; i < addressData.length; i++) {
             const item = addressData[i];
@@ -1030,20 +805,10 @@ async function processExcelFile(file) {
             }
         }
         
-        // Создаём маркеры
         for (let i = 0; i < addressData.length; i++) {
             if (addressData[i].geocodeSuccess && markerData[i]) {
                 await new Promise(resolve => setTimeout(resolve, 50));
-                const isDup = markerData[i].isDuplicate || false;
-                addMarker(
-                    markerData[i].lat,
-                    markerData[i].lon,
-                    markerData[i].address,
-                    markerData[i].originalAddress,
-                    i,
-                    markerData[i].id,
-                    isDup
-                );
+                addMarker(markerData[i].lat, markerData[i].lon, markerData[i].address, markerData[i].originalAddress, i, markerData[i].id, markerData[i].isDuplicate);
             }
         }
         
@@ -1051,7 +816,6 @@ async function processExcelFile(file) {
         updateStats();
         updateAptSum();
         updatePlotLists();
-        
         if (markers.length > 0) {
             setTimeout(() => {
                 const coords = markers.map(m => m.geometry.getCoordinates());
@@ -1063,11 +827,9 @@ async function processExcelFile(file) {
                 saveStateToURL();
             }, 200);
         }
-        
         const successCount = addressData.filter(a => a.geocodeSuccess).length;
         const duplicateCount = markerData.filter(m => m && m.isDuplicate).length;
         alert(`Готово! Найдено ${successCount} из ${addresses.length} адресов. Дубликатов: ${duplicateCount}`);
-        
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка: ' + error.message);
@@ -1076,29 +838,22 @@ async function processExcelFile(file) {
     }
 }
 
-// Инициализация
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     document.getElementById('assignPlotBtn').onclick = assignPlotToSelected;
+    document.getElementById('removePlotBtn').onclick = removePlotFromSelected;
     document.getElementById('exportExcelBtn').onclick = exportToExcel;
     document.getElementById('selectAllBtn').onclick = selectAll;
     document.getElementById('deselectAllBtn').onclick = deselectAll;
     document.getElementById('getLinkBtn').onclick = getMapLink;
     document.getElementById('rulerBtn').onclick = toggleRuler;
     document.getElementById('clearRulerBtn').onclick = clearRuler;
-    
     document.getElementById('filterPlotBtn').onclick = () => {
         const plotNumber = document.getElementById('plotFilterInput').value.trim();
-        if (plotNumber) {
-            highlightByPlot(plotNumber);
-        } else {
-            alert('Введите номер участка для поиска');
-        }
+        if (plotNumber) highlightByPlot(plotNumber);
+        else alert('Введите номер участка для поиска');
     };
-    document.getElementById('clearFilterBtn').onclick = () => {
-        clearHighlight();
-    };
-    
+    document.getElementById('clearFilterBtn').onclick = clearHighlight;
     document.getElementById('applyFilterBtn').onclick = applyFloorsFilter;
     document.getElementById('resetFilterBtn').onclick = resetFloorsFilter;
     

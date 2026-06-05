@@ -42,13 +42,8 @@
             align-items: center;
             justify-content: center;
         }
-        .map-controls button:hover {
-            background: #e0e0e0;
-        }
-        .map-controls button.active {
-            background: #2196F3;
-            color: white;
-        }
+        .map-controls button:hover { background: #e0e0e0; }
+        .map-controls button.active { background: #2196F3; color: white; }
         
         /* ФИЛЬТР ПО ЭТАЖАМ */
         .filter-panel {
@@ -80,9 +75,7 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        .filter-panel button:hover {
-            background: #0b7dda;
-        }
+        .filter-panel button:hover { background: #0b7dda; }
         
         /* ИНФОРМАЦИЯ О РАССТОЯНИИ */
         .distance-info {
@@ -116,9 +109,7 @@
             font-size: 12px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
-        .distance-controls button:hover {
-            background: #f0f0f0;
-        }
+        .distance-controls button:hover { background: #f0f0f0; }
         
         .right-panel {
             width: 320px;
@@ -168,7 +159,6 @@
         .stats-item { display: inline-flex; align-items: center; gap: 4px; }
         .stats-number { font-weight: bold; color: #2196F3; font-size: 13px; }
         
-        /* УВЕЛИЧЕННЫЕ ПОЛЯ */
         .plot-selector, .plot-filter { 
             display: inline-flex; 
             align-items: center; 
@@ -184,10 +174,7 @@
             border-radius: 4px; 
             font-size: 13px; 
         }
-        .plot-selector button, .plot-filter button {
-            padding: 6px 14px;
-            font-size: 12px;
-        }
+        .plot-selector button, .plot-filter button { padding: 6px 14px; font-size: 12px; }
         
         .current-selection, .apt-summary { padding: 4px 10px; border-radius: 5px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
         .current-selection { background: #e8f5e9; color: #666; }
@@ -221,12 +208,10 @@
         <div class="map-container">
             <div id="map"></div>
             
-            <!-- КНОПКИ УПРАВЛЕНИЯ -->
             <div class="map-controls">
                 <button id="rulerBtn" title="Измерить расстояние">📏</button>
             </div>
             
-            <!-- ФИЛЬТР ПО ЭТАЖАМ -->
             <div class="filter-panel">
                 <span>🏢 Этажи:</span>
                 <input type="number" id="floorsFilter" value="0" min="0" step="1">
@@ -234,7 +219,6 @@
                 <button id="resetFilterBtn" class="btn-outline" style="padding: 4px 8px;">Сброс</button>
             </div>
             
-            <!-- ИНФОРМАЦИЯ О РАССТОЯНИИ -->
             <div class="distance-info" id="distanceInfo"></div>
             <div class="distance-controls" id="distanceControls">
                 <button id="clearRulerBtn">🗑️ Очистить метки</button>
@@ -276,6 +260,7 @@
                 <datalist id="plotListAssign"></datalist>
                 <button class="btn-primary" id="assignPlotBtn">Назначить</button>
             </div>
+            <button class="btn-warning" id="removePlotBtn">🗑️ Снять участок</button>
             <div class="apt-summary">🏢 <span id="selectedAptSum">0</span></div>
             <div class="current-selection">✅ <span id="selectedCount">0</span></div>
             <div class="separator"></div>

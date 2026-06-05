@@ -1,4 +1,4 @@
-// app.js - с автодополнением участков, улучшенной линейкой и коррекцией адресов
+// app.js - полная версия с уникальными цветами для участков
 
 let map;
 let markers = [];
@@ -19,7 +19,47 @@ let rulerPlacemarks = [];
 // Переменные для фильтра по этажам
 let currentFloorsFilter = 0;
 
-// Функция для обновления списка участков в datalist
+// Кэш цветов для участков
+const plotColors = new Map();
+
+// Генератор цветов для участков (1-70 предопределённые, остальные - автоматические)
+function getColorForPlot(plotName) {
+    if (!plotName || plotName === '') return null;
+    
+    // Предопределённые цвета для участков 1-70
+    const predefinedColors = {
+        '1': '#4CAF50',    '2': '#FF9800',    '3': '#9C27B0',    '4': '#00BCD4',    '5': '#E91E63',
+        '6': '#8BC34A',    '7': '#FF5722',    '8': '#673AB7',    '9': '#009688',    '10': '#FFC107',
+        '11': '#795548',   '12': '#607D8B',   '13': '#3F51B5',   '14': '#CDDC39',   '15': '#FF4081',
+        '16': '#7C4DFF',   '17': '#64FFDA',   '18': '#FF6E40',   '19': '#B2FF59',   '20': '#E040FB',
+        '21': '#FFD54F',   '22': '#CE93D8',   '23': '#80CBC4',   '24': '#FFAB91',   '25': '#BCAAA4',
+        '26': '#90CAF9',   '27': '#A5D6A7',   '28': '#F48FB1',   '29': '#FFF59D',   '30': '#B39DDB',
+        '31': '#F44336',   '32': '#FF7043',   '33': '#FFB74D',   '34': '#FFF176',   '35': '#AED581',
+        '36': '#4DB6AC',   '37': '#4FC3F7',   '38': '#7986CB',   '39': '#BA68C8',   '40': '#F06292',
+        '41': '#E57373',   '42': '#FFB74D',   '43': '#FFF176',   '44': '#AED581',   '45': '#4DB6AC',
+        '46': '#4FC3F7',   '47': '#7986CB',   '48': '#BA68C8',   '49': '#F06292',   '50': '#A1887F',
+        '51': '#E0E0E0',   '52': '#BDBDBD',   '53': '#9E9E9E',   '54': '#757575',   '55': '#616161',
+        '56': '#FBC02D',   '57': '#F57C00',   '58': '#E65100',   '59': '#827717',   '60': '#33691E',
+        '61': '#004D40',   '62': '#006064',   '63': '#0D47A1',   '64': '#1A237E',   '65': '#311B92',
+        '66': '#4A148C',   '67': '#880E4F',   '68': '#B71C1C',   '69': '#BF360C',   '70': '#3E2723'
+    };
+    
+    // Если участок - цифра от 1 до 70, берём из предопределённых
+    if (predefinedColors[plotName]) {
+        return predefinedColors[plotName];
+    }
+    
+    // Для остальных участков (1А, 13Б, Участок А и т.д.) генерируем цвет на основе хэша
+    let hash = 0;
+    for (let i = 0; i < plotName.length; i++) {
+        hash = ((hash << 5) - hash) + plotName.charCodeAt(i);
+        hash = hash & hash;
+    }
+    const hue = Math.abs(hash % 360);
+    return `hsl(${hue}, 65%, 55%)`;
+}
+
+// Функция для обновления списка участков в datalist (сортировка)
 function updatePlotLists() {
     const plots = new Set();
     for (const data of markerData) {
@@ -28,12 +68,22 @@ function updatePlotLists() {
         }
     }
     
+    // Сортируем: сначала цифры по возрастанию, потом остальные
+    const sortedPlots = Array.from(plots).sort((a, b) => {
+        const aNum = parseInt(a);
+        const bNum = parseInt(b);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        if (!isNaN(aNum)) return -1;
+        if (!isNaN(bNum)) return 1;
+        return String(a).localeCompare(String(b));
+    });
+    
     const plotList = document.getElementById('plotList');
     const plotListAssign = document.getElementById('plotListAssign');
     
     if (plotList) {
         plotList.innerHTML = '';
-        for (const plot of plots) {
+        for (const plot of sortedPlots) {
             const option = document.createElement('option');
             option.value = plot;
             plotList.appendChild(option);
@@ -42,7 +92,7 @@ function updatePlotLists() {
     
     if (plotListAssign) {
         plotListAssign.innerHTML = '';
-        for (const plot of plots) {
+        for (const plot of sortedPlots) {
             const option = document.createElement('option');
             option.value = plot;
             plotListAssign.appendChild(option);
@@ -50,28 +100,13 @@ function updatePlotLists() {
     }
 }
 
-// Генератор цветов для участков
-function getColorForPlot(plotName) {
-    if (!plotName || plotName === '') return null;
-    
-    let hash = 0;
-    for (let i = 0; i < plotName.length; i++) {
-        hash = ((hash << 5) - hash) + plotName.charCodeAt(i);
-        hash = hash & hash;
-    }
-    const hue = Math.abs(hash % 360);
-    return `hsl(${hue}, 70%, 55%)`;
-}
-
-// Кэш цветов для участков
-const plotColors = new Map();
-
+// Функция для получения цвета маркера
 function getMarkerColor(index) {
     const data = markerData[index];
-    if (!data) return 'green';
+    if (!data) return '#4CAF50';
     
     const isDuplicate = data.isDuplicate || false;
-    if (isDuplicate) return 'red';
+    if (isDuplicate) return '#F44336';
     
     const plotName = data.plot;
     if (plotName && plotName !== '') {
@@ -81,7 +116,7 @@ function getMarkerColor(index) {
         return plotColors.get(plotName);
     }
     
-    return 'green';
+    return '#9E9E9E'; // серый для адресов без участка
 }
 
 function shouldShowMarker(index) {
@@ -194,7 +229,6 @@ function addRulerPoint(coords) {
         }
     });
     
-    // Добавляем возможность удалить точку по правому клику
     placemark.events.add('contextmenu', function(e) {
         e.preventDefault();
         const idx = rulerPlacemarks.indexOf(placemark);
@@ -231,22 +265,6 @@ function toggleRuler() {
         rulerBtn.style.color = 'black';
         clearRuler();
     }
-}
-
-// Коррекция адреса: если буква в корпусе, переносим её к номеру дома
-function normalizeAddress(street, house, building) {
-    let normalizedHouse = house;
-    let normalizedBuilding = building;
-    
-    // Если в корпусе есть буква, а дом без буквы
-    if (building && building.trim() !== '' && /[А-Яа-я]$/.test(building) && !/[А-Яа-я]$/.test(house)) {
-        // Переносим букву к номеру дома
-        const letter = building.trim();
-        normalizedHouse = house + letter;
-        normalizedBuilding = '';
-    }
-    
-    return { street, house: normalizedHouse, building: normalizedBuilding };
 }
 
 // Инициализация карты
@@ -287,7 +305,7 @@ function initMap() {
                 if (!selectedMarkerIndexes.has(idx)) {
                     selectedMarkerIndexes.add(idx);
                     const number = markerData[idx]?.id || idx + 1;
-                    const pinSvg = getPinSvg(number, 'blue', true);
+                    const pinSvg = getPinSvg(number, '#2196F3', true);
                     const pinUrl = 'data:image/svg+xml,' + encodeURIComponent(pinSvg);
                     if (markers[idx]) markers[idx].options.set('iconImageHref', pinUrl);
                 }
@@ -308,7 +326,6 @@ function initMap() {
         
         map.geoObjects.add(clusterer);
         
-        // Обработчик клика для линейки
         map.events.add('click', function(e) {
             if (!rulerActive) return;
             const coords = e.get('coords');
@@ -458,15 +475,12 @@ function getPinSvg(number, markerColor, isSelected = false) {
     
     if (isSelected) {
         fillColor = '#2196F3';
+    } else if (markerColor && markerColor.startsWith('#')) {
+        fillColor = markerColor;
     } else if (markerColor && markerColor.startsWith('hsl')) {
         fillColor = markerColor;
     } else {
-        switch(markerColor) {
-            case 'green': fillColor = '#4CAF50'; break;
-            case 'orange': fillColor = '#FF9800'; break;
-            case 'red': fillColor = '#F44336'; break;
-            default: fillColor = '#4CAF50';
-        }
+        fillColor = '#4CAF50';
     }
     
     const shadowFilter = isSelected ? 
@@ -714,13 +728,7 @@ function assignPlotToSelected() {
     
     for (let index of selectedMarkerIndexes) {
         if (markerData[index] && addressData[index].geocodeSuccess) {
-            const oldPlot = markerData[index].plot;
             markerData[index].plot = selectedPlot;
-            
-            if (oldPlot !== selectedPlot) {
-                // Цвет будет сгенерирован при следующем вызове getMarkerColor
-            }
-            
             updateMarkerColor(index);
             
             const data = markerData[index];
@@ -856,6 +864,7 @@ function clearAll() {
     document.getElementById('plotInput').value = '';
     document.getElementById('plotFilterInput').value = '';
     currentFilterPlot = null;
+    plotColors.clear();
     updateAddressList();
     updateStats();
     updateSelectionStats();
@@ -935,7 +944,7 @@ async function processExcelFile(file) {
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
                 
-                // КОРРЕКЦИЯ АДРЕСА: если в корпусе буква, переносим к номеру дома
+                // Коррекция адреса: если в корпусе буква, переносим к номеру дома
                 if (building && /[А-Яа-я]$/.test(building) && !/[А-Яа-я]$/.test(house)) {
                     const letter = building;
                     house = house + letter;

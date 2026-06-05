@@ -99,9 +99,29 @@
             pointer-events: none;
             display: none;
         }
+        .distance-controls {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            z-index: 100;
+            display: none;
+            gap: 8px;
+        }
+        .distance-controls button {
+            background: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .distance-controls button:hover {
+            background: #f0f0f0;
+        }
         
         .right-panel {
-            width: 300px;
+            width: 320px;
             background: white;
             padding: 14px;
             box-shadow: -2px 0 8px rgba(0,0,0,0.08);
@@ -148,8 +168,26 @@
         .stats-item { display: inline-flex; align-items: center; gap: 4px; }
         .stats-number { font-weight: bold; color: #2196F3; font-size: 13px; }
         
-        .plot-selector, .plot-filter { display: inline-flex; align-items: center; gap: 6px; background: #f5f5f5; padding: 4px 10px; border-radius: 6px; }
-        .plot-selector input, .plot-filter input { width: 80px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; }
+        /* УВЕЛИЧЕННЫЕ ПОЛЯ */
+        .plot-selector, .plot-filter { 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            background: #f5f5f5; 
+            padding: 5px 12px; 
+            border-radius: 6px; 
+        }
+        .plot-selector input, .plot-filter input { 
+            width: 140px; 
+            padding: 6px 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            font-size: 13px; 
+        }
+        .plot-selector button, .plot-filter button {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
         
         .current-selection, .apt-summary { padding: 4px 10px; border-radius: 5px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
         .current-selection { background: #e8f5e9; color: #666; }
@@ -175,11 +213,6 @@
         .address-content { flex: 1; }
         .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
         .separator { width: 1px; height: 25px; background: #ddd; }
-        
-        /* Стили для скрытых маркеров (фильтр по этажам) */
-        .marker-hidden {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -203,6 +236,9 @@
             
             <!-- ИНФОРМАЦИЯ О РАССТОЯНИИ -->
             <div class="distance-info" id="distanceInfo"></div>
+            <div class="distance-controls" id="distanceControls">
+                <button id="clearRulerBtn">🗑️ Очистить метки</button>
+            </div>
         </div>
         
         <div class="right-panel" id="rightPanel">
@@ -227,8 +263,19 @@
             </div>
         </div>
         <div class="bottom-right">
-            <div class="plot-filter"><label>🔍</label><input type="text" id="plotFilterInput" placeholder="Участок"><button class="btn-outline" id="filterPlotBtn">Найти</button><button class="btn-warning" id="clearFilterBtn" style="display:none;">✖️</button></div>
-            <div class="plot-selector"><label>🎯</label><input type="text" id="plotInput" placeholder="Номер"><button class="btn-primary" id="assignPlotBtn">Назначить</button></div>
+            <div class="plot-filter">
+                <label>🔍</label>
+                <input type="text" id="plotFilterInput" placeholder="Выберите участок" list="plotList">
+                <datalist id="plotList"></datalist>
+                <button class="btn-outline" id="filterPlotBtn">Найти</button>
+                <button class="btn-warning" id="clearFilterBtn" style="display:none;">✖️</button>
+            </div>
+            <div class="plot-selector">
+                <label>🎯</label>
+                <input type="text" id="plotInput" placeholder="Номер участка" list="plotListAssign">
+                <datalist id="plotListAssign"></datalist>
+                <button class="btn-primary" id="assignPlotBtn">Назначить</button>
+            </div>
             <div class="apt-summary">🏢 <span id="selectedAptSum">0</span></div>
             <div class="current-selection">✅ <span id="selectedCount">0</span></div>
             <div class="separator"></div>

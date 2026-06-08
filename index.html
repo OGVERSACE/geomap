@@ -57,8 +57,9 @@
             align-items: center;
             gap: 12px;
             font-size: 12px;
+            flex-wrap: wrap;
         }
-        .filter-panel input {
+        .filter-panel input[type="number"] {
             width: 60px;
             padding: 4px 6px;
             border: 1px solid #ddd;
@@ -74,6 +75,16 @@
             cursor: pointer;
         }
         .filter-panel button:hover { background: #0b7dda; }
+        .filter-panel label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .filter-panel label input {
+            margin: 0;
+            cursor: pointer;
+        }
         
         .distance-info {
             position: absolute;
@@ -214,6 +225,10 @@
                 <input type="number" id="floorsFilter" value="0" min="0" step="1">
                 <button id="applyFilterBtn">Показать</button>
                 <button id="resetFilterBtn" class="btn-outline" style="padding: 4px 8px;">Сброс</button>
+                <label>
+                    <input type="checkbox" id="onlyWithFloorsCheckbox">
+                    <span style="font-size: 11px;">Только с указанными этажами</span>
+                </label>
             </div>
             
             <div class="distance-info" id="distanceInfo"></div>

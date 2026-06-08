@@ -1,4 +1,4 @@
-// app.js - полная версия с фильтром "Только с указанными этажами"
+// app.js - полная версия с поддержкой литер и дробей
 
 let map;
 let markers = [];
@@ -99,22 +99,18 @@ function getMarkerColor(index) {
     return '#4CAF50';
 }
 
-// Проверка, нужно ли показывать маркер (по фильтру этажей)
 function shouldShowMarker(index) {
     const floors = markerData[index]?.floors || 0;
     const onlyWithFloors = document.getElementById('onlyWithFloorsCheckbox')?.checked || false;
     
-    // Если включен режим "только с указанными этажами" и этажи не указаны (0) - скрываем
     if (onlyWithFloors && floors === 0) {
         return false;
     }
     
-    // Если фильтр по этажам не активен (0) - показываем все
     if (currentFloorsFilter === 0) {
         return true;
     }
     
-    // Показываем только если этажи >= фильтра
     return floors >= currentFloorsFilter;
 }
 
@@ -806,16 +802,37 @@ async function processExcelFile(file) {
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
                 
-                if (building && /^\d+\/\d+$/.test(building)) {
-                    house = `${house}/${building}`;
-                    building = '';
-                }
-                if (building && /[А-Яа-я]/.test(building) && !/[А-Яа-я]/.test(house)) {
-                    const letter = building.match(/[А-Яа-я]+/);
-                    if (letter) {
-                        house = house + letter[0];
-                        building = building.replace(/[А-Яа-я]+/, '');
+                // ЛОГИКА ОБРАБОТКИ КОРПУСА:
+                // 1. Если корпус — просто цифра (1, 2, 3...) → превращаем в литера (4к1)
+                // 2. Если корпус — буква или буква с цифрой → присоединяем (15а)
+                // 3. Если в доме уже есть слеш (дробь) — не трогаем
+                // 4. Если корпус содержит слеш — оставляем как корпус для дроби
+                
+                if (building && building !== '') {
+                    // Если это просто цифра (литера)
+                    if (/^\d+$/.test(building)) {
+                        house = house + 'к' + building;
+                        building = '';
                     }
+                    // Если это буква или буква с цифрой
+                    else if (/^[а-яА-ЯёЁ]+$|^[а-яА-ЯёЁ]+\d+$|^\d+[а-яА-ЯёЁ]+$/.test(building)) {
+                        house = house + building;
+                        building = '';
+                    }
+                    // Если это дробь (содержит /) — оставляем как есть
+                    else if (building.includes('/')) {
+                        // Дробь остаётся в building, не объединяем
+                    }
+                    // Остальное — просто присоединяем
+                    else {
+                        house = house + building;
+                        building = '';
+                    }
+                }
+                
+                // Если в доме уже есть слеш — это дробь, корпус должен быть пустым
+                if (house.includes('/')) {
+                    building = '';
                 }
                 
                 if (apartmentsCol !== -1 && row[apartmentsCol]) apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
@@ -912,7 +929,6 @@ async function processExcelFile(file) {
     }
 }
 
-// Обработчик изменения чекбокса
 const onlyWithFloorsCheckbox = document.getElementById('onlyWithFloorsCheckbox');
 if (onlyWithFloorsCheckbox) {
     onlyWithFloorsCheckbox.onchange = function() {

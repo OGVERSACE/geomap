@@ -1,4 +1,4 @@
-// geocoder.js - улучшенная версия с приоритетом города
+// geocoder.js - простая надёжная версия
 
 class DaDataGeocoder {
     constructor() {
@@ -38,62 +38,20 @@ class DaDataGeocoder {
     async geocodeAddress(street, house, building, city = '') {
         const expandedStreet = this.expandStreetName(street);
         
-        let formattedHouse = house;
-        let formattedBuilding = building;
-        
-        if (formattedBuilding && /^\d+\/\d+$/.test(formattedBuilding)) {
-            formattedHouse = `${formattedHouse}/${formattedBuilding}`;
-            formattedBuilding = '';
+        let fullHouse = house;
+        if (building && building.trim() !== '') {
+            fullHouse = `${house}/${building}`;
         }
         
-        if (formattedBuilding && /[А-Яа-я]/.test(formattedBuilding) && !/[А-Яа-я]/.test(formattedHouse)) {
-            const letter = formattedBuilding.match(/[А-Яа-я]+/);
-            if (letter) {
-                formattedHouse = formattedHouse + letter[0];
-                formattedBuilding = formattedBuilding.replace(/[А-Яа-я]+/, '');
-            }
-        }
-        
-        const queries = [];
-        
+        let query = '';
         if (city && city.trim() !== '') {
-            queries.push({
-                query: `${city} ${expandedStreet} ${formattedHouse}`,
-                priority: 1
-            });
-            if (formattedBuilding) {
-                queries.push({
-                    query: `${city} ${expandedStreet} ${formattedHouse} корпус ${formattedBuilding}`,
-                    priority: 1
-                });
-            }
+            query = `${city}, ${expandedStreet} ${fullHouse}`;
+        } else {
+            query = `${expandedStreet} ${fullHouse}`;
         }
         
-        queries.push({
-            query: `${expandedStreet} ${formattedHouse}`,
-            priority: 2
-        });
+        console.log(`🔍 Поиск: ${query}`);
         
-        queries.push({
-            query: `${street} ${house}`,
-            priority: 3
-        });
-        
-        queries.sort((a, b) => a.priority - b.priority);
-        
-        for (const q of queries) {
-            console.log(`🔍 Поиск: ${q.query}`);
-            const result = await this.makeRequest(q.query, city);
-            if (result.success) {
-                console.log(`   ✅ Найдено: ${result.address}`);
-                return result;
-            }
-        }
-        
-        return { success: false, error: 'Адрес не найден' };
-    }
-    
-    async makeRequest(query, cityFilter) {
         try {
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
@@ -102,7 +60,7 @@ class DaDataGeocoder {
                     'Accept': 'application/json',
                     'Authorization': `Token ${this.apiKey}`
                 },
-                body: JSON.stringify({ query: query, count: 10 })
+                body: JSON.stringify({ query: query, count: 5 })
             });
             
             if (!response.ok) throw new Error(`Ошибка ${response.status}`);
@@ -110,25 +68,46 @@ class DaDataGeocoder {
             const data = await response.json();
             
             if (data.suggestions && data.suggestions.length > 0) {
-                let candidates = data.suggestions;
-                
-                if (cityFilter && cityFilter.trim() !== '') {
-                    const cityLower = cityFilter.toLowerCase();
-                    candidates = candidates.filter(s => {
-                        const dataCity = (s.data.city || s.data.settlement || '').toLowerCase();
-                        return dataCity.includes(cityLower);
-                    });
+                const suggestion = data.suggestions[0];
+                if (suggestion.data && suggestion.data.geo_lat && suggestion.data.geo_lon) {
+                    return {
+                        success: true,
+                        lat: parseFloat(suggestion.data.geo_lat),
+                        lon: parseFloat(suggestion.data.geo_lon),
+                        address: suggestion.value
+                    };
                 }
+            }
+            
+            // Если не нашли с расшифрованной улицей, пробуем с исходной
+            if (expandedStreet !== street) {
+                let fallbackQuery = '';
+                if (city && city.trim() !== '') {
+                    fallbackQuery = `${city}, ${street} ${fullHouse}`;
+                } else {
+                    fallbackQuery = `${street} ${fullHouse}`;
+                }
+                console.log(`🔍 Повторный поиск: ${fallbackQuery}`);
                 
-                if (candidates.length > 0) {
-                    const best = candidates[0];
-                    if (best.data && best.data.geo_lat && best.data.geo_lon) {
+                const fallbackResponse = await fetch(this.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Token ${this.apiKey}`
+                    },
+                    body: JSON.stringify({ query: fallbackQuery, count: 5 })
+                });
+                
+                const fallbackData = await fallbackResponse.json();
+                if (fallbackData.suggestions && fallbackData.suggestions.length > 0) {
+                    const suggestion = fallbackData.suggestions[0];
+                    if (suggestion.data && suggestion.data.geo_lat && suggestion.data.geo_lon) {
                         return {
                             success: true,
-                            lat: parseFloat(best.data.geo_lat),
-                            lon: parseFloat(best.data.geo_lon),
-                            address: best.value,
-                            city: best.data.city || best.data.settlement || cityFilter
+                            lat: parseFloat(suggestion.data.geo_lat),
+                            lon: parseFloat(suggestion.data.geo_lon),
+                            address: suggestion.value
                         };
                     }
                 }

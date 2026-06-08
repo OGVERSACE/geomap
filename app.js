@@ -1,4 +1,4 @@
-// app.js - полная стабильная версия
+// app.js - полная версия с фильтром "Только с указанными этажами"
 
 let map;
 let markers = [];
@@ -99,18 +99,33 @@ function getMarkerColor(index) {
     return '#4CAF50';
 }
 
+// Проверка, нужно ли показывать маркер (по фильтру этажей)
 function shouldShowMarker(index) {
-    if (currentFloorsFilter === 0) return true;
     const floors = markerData[index]?.floors || 0;
-    if (floors === 0) return true;
+    const onlyWithFloors = document.getElementById('onlyWithFloorsCheckbox')?.checked || false;
+    
+    // Если включен режим "только с указанными этажами" и этажи не указаны (0) - скрываем
+    if (onlyWithFloors && floors === 0) {
+        return false;
+    }
+    
+    // Если фильтр по этажам не активен (0) - показываем все
+    if (currentFloorsFilter === 0) {
+        return true;
+    }
+    
+    // Показываем только если этажи >= фильтра
     return floors >= currentFloorsFilter;
 }
 
 function applyFloorsFilter() {
     const filterInput = document.getElementById('floorsFilter');
     currentFloorsFilter = parseInt(filterInput.value) || 0;
+    
     for (let i = 0; i < markers.length; i++) {
-        if (markers[i]) markers[i].options.set('visible', shouldShowMarker(i));
+        if (markers[i]) {
+            markers[i].options.set('visible', shouldShowMarker(i));
+        }
     }
     if (clusterer) clusterer.reload();
     updateAddressList();
@@ -120,7 +135,9 @@ function resetFloorsFilter() {
     document.getElementById('floorsFilter').value = 0;
     currentFloorsFilter = 0;
     for (let i = 0; i < markers.length; i++) {
-        if (markers[i]) markers[i].options.set('visible', true);
+        if (markers[i]) {
+            markers[i].options.set('visible', shouldShowMarker(i));
+        }
     }
     if (clusterer) clusterer.reload();
     updateAddressList();
@@ -789,12 +806,10 @@ async function processExcelFile(file) {
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
                 
-                // Обработка дроби в корпусе
                 if (building && /^\d+\/\d+$/.test(building)) {
                     house = `${house}/${building}`;
                     building = '';
                 }
-                // Обработка буквы в корпусе
                 if (building && /[А-Яа-я]/.test(building) && !/[А-Яа-я]/.test(house)) {
                     const letter = building.match(/[А-Яа-я]+/);
                     if (letter) {
@@ -895,6 +910,14 @@ async function processExcelFile(file) {
     } finally {
         loadingDiv.style.display = 'none';
     }
+}
+
+// Обработчик изменения чекбокса
+const onlyWithFloorsCheckbox = document.getElementById('onlyWithFloorsCheckbox');
+if (onlyWithFloorsCheckbox) {
+    onlyWithFloorsCheckbox.onchange = function() {
+        applyFloorsFilter();
+    };
 }
 
 document.addEventListener('DOMContentLoaded', () => {

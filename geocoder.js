@@ -1,4 +1,4 @@
-// geocoder.js - улучшенная версия с поддержкой города, сокращений и дробей
+// geocoder.js - улучшенная версия с приоритетом города и региона
 
 class DaDataGeocoder {
     constructor() {
@@ -27,7 +27,6 @@ class DaDataGeocoder {
             'ст': 'старая', 'ст.': 'старая'
         };
         
-        let expanded = street;
         const words = street.split(' ');
         for (let i = 0; i < words.length; i++) {
             const lowerWord = words[i].toLowerCase();
@@ -35,72 +34,102 @@ class DaDataGeocoder {
                 words[i] = abbreviations[lowerWord];
             }
         }
-        expanded = words.join(' ');
+        return words.join(' ');
+    }
+    
+    // Нормализация номера дома (дроби, буквы)
+    normalizeHouseNumber(house, building) {
+        let normalizedHouse = house;
+        let normalizedBuilding = building;
         
-        if (expanded !== street) {
-            console.log(`📝 Расшифровка: "${street}" → "${expanded}"`);
+        // Если в корпусе есть дробь вида "11/118"
+        if (normalizedBuilding && /^\d+\/\d+$/.test(normalizedBuilding)) {
+            normalizedHouse = `${normalizedHouse}/${normalizedBuilding}`;
+            normalizedBuilding = '';
         }
-        return expanded;
+        // Если в корпусе есть буква, а в доме нет
+        else if (normalizedBuilding && /[А-Яа-я]/.test(normalizedBuilding) && !/[А-Яа-я]/.test(normalizedHouse)) {
+            const letter = normalizedBuilding.match(/[А-Яа-я]+/);
+            if (letter) {
+                normalizedHouse = normalizedHouse + letter[0];
+                normalizedBuilding = normalizedBuilding.replace(/[А-Яа-я]+/, '');
+            }
+        }
+        // Если в доме уже есть буква, оставляем как есть
+        
+        return { house: normalizedHouse, building: normalizedBuilding };
     }
     
     async geocodeAddress(street, house, building, city = '') {
         const expandedStreet = this.expandStreetName(street);
+        const normalized = this.normalizeHouseNumber(house, building);
         
-        let formattedHouse = house;
-        let formattedBuilding = building;
+        // Строим варианты адресов для поиска (от самого точного к менее точному)
+        const queries = [];
         
-        // Обработка дроби в корпусе
-        if (formattedBuilding && /^\d+\/\d+$/.test(formattedBuilding)) {
-            formattedHouse = `${formattedHouse}/${formattedBuilding}`;
-            formattedBuilding = '';
-        }
-        
-        // Обработка буквы в корпусе
-        if (formattedBuilding && /[А-Яа-я]/.test(formattedBuilding) && !/[А-Яа-я]/.test(formattedHouse)) {
-            const letter = formattedBuilding.match(/[А-Яа-я]+/);
-            if (letter) {
-                formattedHouse = formattedHouse + letter[0];
-                formattedBuilding = formattedBuilding.replace(/[А-Яа-я]+/, '');
+        // Вариант 1: Город + полный адрес
+        if (city && city.trim() !== '') {
+            queries.push({
+                query: `${city} ${expandedStreet} ${normalized.house}`,
+                priority: 1,
+                useCityFilter: true
+            });
+            
+            // С корпусом
+            if (normalized.building) {
+                queries.push({
+                    query: `${city} ${expandedStreet} ${normalized.house} корпус ${normalized.building}`,
+                    priority: 1,
+                    useCityFilter: true
+                });
             }
         }
         
-        let query = '';
-        if (city && city.trim() !== '') {
-            query = `${city} `;
+        // Вариант 2: Только улица + дом (без города)
+        queries.push({
+            query: `${expandedStreet} ${normalized.house}`,
+            priority: 2,
+            useCityFilter: false
+        });
+        
+        // Вариант 3: Исходный адрес (без расшифровки)
+        queries.push({
+            query: `${street} ${house}`,
+            priority: 3,
+            useCityFilter: false
+        });
+        
+        // Сортируем по приоритету
+        queries.sort((a, b) => a.priority - b.priority);
+        
+        let bestResult = null;
+        let bestScore = -1;
+        
+        for (const q of queries) {
+            console.log(`🔍 Попытка ${q.priority}: ${q.query}`);
+            
+            const result = await this.makeRequest(q.query, q.useCityFilter ? city : '');
+            
+            if (result.success && result.score > bestScore) {
+                bestScore = result.score;
+                bestResult = result;
+                console.log(`   ✅ Найдено (оценка: ${result.score}): ${result.address}`);
+                
+                // Если оценка максимальная, прерываем поиск
+                if (result.score >= 0.9) break;
+            }
         }
-        query += `${expandedStreet} ${formattedHouse}`;
-        if (formattedBuilding && formattedBuilding.trim() !== '') {
-            query += ` корпус ${formattedBuilding}`;
+        
+        if (bestResult) {
+            return bestResult;
         }
         
-        console.log(`🔍 Поиск: ${query} (город: ${city || 'не указан'})`);
-        
-        let result = await this.makeRequest(query, city);
-        
-        if (!result.success && city && city.trim() !== '') {
-            console.log(`⚠️ Повторный поиск без города: ${expandedStreet} ${formattedHouse}`);
-            result = await this.makeRequest(`${expandedStreet} ${formattedHouse}`, '');
-        }
-        
-        if (!result.success) {
-            console.log(`⚠️ Повторный поиск с исходным адресом: ${street} ${house}`);
-            let fallbackQuery = '';
-            if (city && city.trim() !== '') fallbackQuery = `${city} `;
-            fallbackQuery += `${street} ${house}`;
-            if (building && building.trim() !== '') fallbackQuery += ` корпус ${building}`;
-            result = await this.makeRequest(fallbackQuery, city);
-        }
-        
-        return result;
+        return { success: false, error: 'Адрес не найден' };
     }
     
-    async makeRequest(query, city) {
+    async makeRequest(query, cityFilter) {
         try {
-            const requestBody = { query: query, count: 5 };
-            if (city && city.trim() !== '') {
-                requestBody.from_bound = { value: "city" };
-                requestBody.to_bound = { value: "city" };
-            }
+            const requestBody = { query: query, count: 10 };
             
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
@@ -117,35 +146,77 @@ class DaDataGeocoder {
             const data = await response.json();
             
             if (data.suggestions && data.suggestions.length > 0) {
-                let filtered = data.suggestions;
-                if (city && city.trim() !== '') {
-                    const cityLower = city.toLowerCase();
-                    filtered = data.suggestions.filter(s => {
-                        const dataCity = (s.data.city || s.data.settlement || '').toLowerCase();
-                        return dataCity.includes(cityLower) || cityLower.includes(dataCity);
+                let candidates = data.suggestions;
+                
+                // Фильтрация по городу (если указан)
+                if (cityFilter && cityFilter.trim() !== '') {
+                    const cityLower = cityFilter.toLowerCase();
+                    candidates = candidates.filter(s => {
+                        const dataCity = (s.data.city || s.data.settlement || s.data.region || '').toLowerCase();
+                        return dataCity.includes(cityLower);
                     });
                 }
                 
-                if (filtered.length > 0) {
-                    const suggestion = filtered[0];
-                    if (suggestion.data && suggestion.data.geo_lat && suggestion.data.geo_lon) {
+                if (candidates.length > 0) {
+                    // Выбираем лучший результат по оценке
+                    let best = candidates[0];
+                    let bestScore = this.calculateScore(best, query, cityFilter);
+                    
+                    for (let i = 1; i < candidates.length; i++) {
+                        const score = this.calculateScore(candidates[i], query, cityFilter);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            best = candidates[i];
+                        }
+                    }
+                    
+                    if (best.data && best.data.geo_lat && best.data.geo_lon) {
                         return {
                             success: true,
-                            lat: parseFloat(suggestion.data.geo_lat),
-                            lon: parseFloat(suggestion.data.geo_lon),
-                            address: suggestion.value,
-                            city: suggestion.data.city || suggestion.data.settlement || city
+                            lat: parseFloat(best.data.geo_lat),
+                            lon: parseFloat(best.data.geo_lon),
+                            address: best.value,
+                            city: best.data.city || best.data.settlement || cityFilter,
+                            score: bestScore
                         };
                     }
                 }
             }
             
-            return { success: false, error: 'Адрес не найден' };
+            return { success: false, error: 'Адрес не найден', score: 0 };
             
         } catch (error) {
-            console.error('Ошибка:', error);
-            return { success: false, error: error.message };
+            console.error('Ошибка запроса:', error);
+            return { success: false, error: error.message, score: 0 };
         }
+    }
+    
+    // Оценка качества результата (0-1)
+    calculateScore(suggestion, query, cityFilter) {
+        let score = 0.5;
+        
+        // Проверяем точность координат
+        if (suggestion.data.geo_lat && suggestion.data.geo_lon) {
+            score += 0.2;
+        }
+        
+        // Проверяем город
+        if (cityFilter) {
+            const dataCity = (suggestion.data.city || suggestion.data.settlement || '').toLowerCase();
+            if (dataCity === cityFilter.toLowerCase()) {
+                score += 0.3;
+            } else if (dataCity.includes(cityFilter.toLowerCase())) {
+                score += 0.15;
+            }
+        }
+        
+        // Проверяем улицу (примерное совпадение)
+        const streetMatch = suggestion.data.street_type_name && suggestion.data.street_name;
+        if (streetMatch) {
+            score += 0.1;
+        }
+        
+        return Math.min(score, 1.0);
     }
 }
 

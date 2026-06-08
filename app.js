@@ -1,4 +1,4 @@
-// app.js - полная версия с улучшенным геокодингом
+// app.js - полная стабильная версия
 
 let map;
 let markers = [];
@@ -10,42 +10,36 @@ let isRestoringFromURL = false;
 let currentFilterPlot = null;
 let clusterer = null;
 
-// Переменные для линейки
 let rulerActive = false;
 let rulerLine = null;
 let rulerPoints = [];
 let rulerPlacemarks = [];
 
-// Переменные для фильтра по этажам
 let currentFloorsFilter = 0;
 
-// Кэш цветов для участков
 const plotColors = new Map();
 
-// Генератор цветов для участков (1-70 предопределённые, остальные - автоматические)
 function getColorForPlot(plotName) {
     if (!plotName || plotName === '') return null;
     
     const predefinedColors = {
-        '1': '#FF9800',    '2': '#9C27B0',    '3': '#00BCD4',    '4': '#E91E63',    '5': '#8BC34A',
-        '6': '#FF5722',    '7': '#673AB7',    '8': '#009688',    '9': '#FFC107',    '10': '#795548',
-        '11': '#607D8B',   '12': '#3F51B5',   '13': '#CDDC39',   '14': '#FF4081',   '15': '#7C4DFF',
-        '16': '#64FFDA',   '17': '#FF6E40',   '18': '#B2FF59',   '19': '#E040FB',   '20': '#FFD54F',
-        '21': '#CE93D8',   '22': '#80CBC4',   '23': '#FFAB91',   '24': '#BCAAA4',   '25': '#90CAF9',
-        '26': '#A5D6A7',   '27': '#F48FB1',   '28': '#FFF59D',   '29': '#B39DDB',   '30': '#F44336',
-        '31': '#FF7043',   '32': '#FFB74D',   '33': '#FFF176',   '34': '#AED581',   '35': '#4DB6AC',
-        '36': '#4FC3F7',   '37': '#7986CB',   '38': '#BA68C8',   '39': '#F06292',   '40': '#A1887F',
-        '41': '#E0E0E0',   '42': '#BDBDBD',   '43': '#9E9E9E',   '44': '#757575',   '45': '#616161',
-        '46': '#FBC02D',   '47': '#F57C00',   '48': '#E65100',   '49': '#827717',   '50': '#33691E',
-        '51': '#004D40',   '52': '#006064',   '53': '#0D47A1',   '54': '#1A237E',   '55': '#311B92',
-        '56': '#4A148C',   '57': '#880E4F',   '58': '#B71C1C',   '59': '#BF360C',   '60': '#3E2723',
-        '61': '#D81B60',   '62': '#F06292',   '63': '#BA68C8',   '64': '#9575CD',   '65': '#7986CB',
-        '66': '#64B5F6',   '67': '#4FC3F7',   '68': '#4DD0E1',   '69': '#4DB6AC',   '70': '#81C784'
+        '1': '#FF9800', '2': '#9C27B0', '3': '#00BCD4', '4': '#E91E63', '5': '#8BC34A',
+        '6': '#FF5722', '7': '#673AB7', '8': '#009688', '9': '#FFC107', '10': '#795548',
+        '11': '#607D8B', '12': '#3F51B5', '13': '#CDDC39', '14': '#FF4081', '15': '#7C4DFF',
+        '16': '#64FFDA', '17': '#FF6E40', '18': '#B2FF59', '19': '#E040FB', '20': '#FFD54F',
+        '21': '#CE93D8', '22': '#80CBC4', '23': '#FFAB91', '24': '#BCAAA4', '25': '#90CAF9',
+        '26': '#A5D6A7', '27': '#F48FB1', '28': '#FFF59D', '29': '#B39DDB', '30': '#F44336',
+        '31': '#FF7043', '32': '#FFB74D', '33': '#FFF176', '34': '#AED581', '35': '#4DB6AC',
+        '36': '#4FC3F7', '37': '#7986CB', '38': '#BA68C8', '39': '#F06292', '40': '#A1887F',
+        '41': '#E0E0E0', '42': '#BDBDBD', '43': '#9E9E9E', '44': '#757575', '45': '#616161',
+        '46': '#FBC02D', '47': '#F57C00', '48': '#E65100', '49': '#827717', '50': '#33691E',
+        '51': '#004D40', '52': '#006064', '53': '#0D47A1', '54': '#1A237E', '55': '#311B92',
+        '56': '#4A148C', '57': '#880E4F', '58': '#B71C1C', '59': '#BF360C', '60': '#3E2723',
+        '61': '#D81B60', '62': '#F06292', '63': '#BA68C8', '64': '#9575CD', '65': '#7986CB',
+        '66': '#64B5F6', '67': '#4FC3F7', '68': '#4DD0E1', '69': '#4DB6AC', '70': '#81C784'
     };
     
-    if (predefinedColors[plotName]) {
-        return predefinedColors[plotName];
-    }
+    if (predefinedColors[plotName]) return predefinedColors[plotName];
     
     let hash = 0;
     for (let i = 0; i < plotName.length; i++) {
@@ -59,9 +53,7 @@ function getColorForPlot(plotName) {
 function updatePlotLists() {
     const plots = new Set();
     for (const data of markerData) {
-        if (data && data.plot && data.plot !== '') {
-            plots.add(data.plot);
-        }
+        if (data && data.plot && data.plot !== '') plots.add(data.plot);
     }
     
     const sortedPlots = Array.from(plots).sort((a, b) => {
@@ -98,17 +90,12 @@ function updatePlotLists() {
 function getMarkerColor(index) {
     const data = markerData[index];
     if (!data) return '#4CAF50';
-    
     if (data.isDuplicate) return '#F44336';
-    
     const plotName = data.plot;
     if (plotName && plotName !== '') {
-        if (!plotColors.has(plotName)) {
-            plotColors.set(plotName, getColorForPlot(plotName));
-        }
+        if (!plotColors.has(plotName)) plotColors.set(plotName, getColorForPlot(plotName));
         return plotColors.get(plotName);
     }
-    
     return '#4CAF50';
 }
 
@@ -122,7 +109,6 @@ function shouldShowMarker(index) {
 function applyFloorsFilter() {
     const filterInput = document.getElementById('floorsFilter');
     currentFloorsFilter = parseInt(filterInput.value) || 0;
-    
     for (let i = 0; i < markers.length; i++) {
         if (markers[i]) markers[i].options.set('visible', shouldShowMarker(i));
     }
@@ -803,7 +789,12 @@ async function processExcelFile(file) {
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
                 
-                // Коррекция адреса: буква из корпуса переносится к дому
+                // Обработка дроби в корпусе
+                if (building && /^\d+\/\d+$/.test(building)) {
+                    house = `${house}/${building}`;
+                    building = '';
+                }
+                // Обработка буквы в корпусе
                 if (building && /[А-Яа-я]/.test(building) && !/[А-Яа-я]/.test(house)) {
                     const letter = building.match(/[А-Яа-я]+/);
                     if (letter) {
@@ -811,18 +802,12 @@ async function processExcelFile(file) {
                         building = building.replace(/[А-Яа-я]+/, '');
                     }
                 }
-                // Обработка дроби в корпусе
-                if (building && /^\d+\/\d+$/.test(building)) {
-                    house = `${house}/${building}`;
-                    building = '';
-                }
                 
                 if (apartmentsCol !== -1 && row[apartmentsCol]) apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
                 if (floorsCol !== -1 && row[floorsCol]) floors = parseInt(String(row[floorsCol]).replace(/[^\d]/g, '')) || 0;
                 if (entrancesCol !== -1 && row[entrancesCol]) entrances = parseInt(String(row[entrancesCol]).replace(/[^\d]/g, '')) || 0;
                 if (plotCol !== -1 && row[plotCol]) plot = String(row[plotCol]).trim();
                 
-                // Получаем город из Excel (если есть)
                 const city = cityCol !== -1 && row[cityCol] ? String(row[cityCol]).trim() : '';
                 
                 addresses.push({ 
@@ -851,8 +836,8 @@ async function processExcelFile(file) {
                 const result = await geocodeAddressWithCache(addr.street, addr.house, addr.building, addr.city);
                 if (result.success) {
                     const originalAddress = `${addr.street}, ${addr.house}${addr.building ? ` корп.${addr.building}` : ''}`;
-                    addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result, foundCity: result.city || addr.city });
-                    markerData.push({ id: addr.id, address: result.address, originalAddress: originalAddress, plot: addr.plot || null, apartments: addr.apartments, floors: addr.floors, entrances: addr.entrances, lat: result.lat, lon: result.lon, isDuplicate: false, foundCity: result.city || addr.city });
+                    addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result });
+                    markerData.push({ id: addr.id, address: result.address, originalAddress: originalAddress, plot: addr.plot || null, apartments: addr.apartments, floors: addr.floors, entrances: addr.entrances, lat: result.lat, lon: result.lon, isDuplicate: false });
                 } else {
                     addressData.push({ ...addr, geocodeSuccess: false, error: result.error || 'Не найден' });
                     markerData.push(null);

@@ -1,4 +1,4 @@
-// app.js - полная версия с уникальными цветами участков, линейкой, фильтром и снятием участка
+// app.js - полная версия с улучшенным геокодингом и исправлением URI_TOO_LONG
 
 let map;
 let markers = [];
@@ -26,7 +26,6 @@ const plotColors = new Map();
 function getColorForPlot(plotName) {
     if (!plotName || plotName === '') return null;
     
-    // Предопределённые цвета для участков 1-70
     const predefinedColors = {
         '1': '#FF9800',    '2': '#9C27B0',    '3': '#00BCD4',    '4': '#E91E63',    '5': '#8BC34A',
         '6': '#FF5722',    '7': '#673AB7',    '8': '#009688',    '9': '#FFC107',    '10': '#795548',
@@ -48,7 +47,6 @@ function getColorForPlot(plotName) {
         return predefinedColors[plotName];
     }
     
-    // Для остальных участков генерируем цвет на основе хэша
     let hash = 0;
     for (let i = 0; i < plotName.length; i++) {
         hash = ((hash << 5) - hash) + plotName.charCodeAt(i);
@@ -58,7 +56,6 @@ function getColorForPlot(plotName) {
     return `hsl(${hue}, 65%, 55%)`;
 }
 
-// Функция для обновления списка участков в datalist
 function updatePlotLists() {
     const plots = new Set();
     for (const data of markerData) {
@@ -98,13 +95,11 @@ function updatePlotLists() {
     }
 }
 
-// Функция для получения цвета маркера
 function getMarkerColor(index) {
     const data = markerData[index];
     if (!data) return '#4CAF50';
     
-    const isDuplicate = data.isDuplicate || false;
-    if (isDuplicate) return '#F44336';
+    if (data.isDuplicate) return '#F44336';
     
     const plotName = data.plot;
     if (plotName && plotName !== '') {
@@ -145,7 +140,6 @@ function resetFloorsFilter() {
     updateAddressList();
 }
 
-// Линейка
 function clearRuler() {
     if (rulerLine) { map.geoObjects.remove(rulerLine); rulerLine = null; }
     for (let pm of rulerPlacemarks) { map.geoObjects.remove(pm); }
@@ -221,7 +215,6 @@ function toggleRuler() {
     }
 }
 
-// Инициализация карты
 function initMap() {
     ymaps.ready(function() {
         map = new ymaps.Map('map', { center: [55.751244, 37.618423], zoom: 10, controls: ['zoomControl', 'fullscreenControl'] });
@@ -281,60 +274,111 @@ function initMap() {
 
 function saveStateToURL() {
     if (!mapReady || !map) return;
+    
     const center = map.getCenter();
     const zoom = map.getZoom();
     const pointsData = [];
+    
     for (let i = 0; i < markerData.length; i++) {
         const data = markerData[i];
         if (data && data.lat && data.lon) {
             pointsData.push({
-                i: data.id || i + 1, a: data.lat, o: data.lon, d: data.address, oA: data.originalAddress,
-                pl: data.plot || '', ap: data.apartments || 0, f: data.floors || 0, e: data.entrances || 0,
-                s: addressData[i]?.street, h: addressData[i]?.house, b: addressData[i]?.building,
-                ci: addressData[i]?.city, dU: data.isDuplicate || false
+                i: data.id || i + 1,
+                a: Math.round(data.lat * 1000000) / 1000000,
+                o: Math.round(data.lon * 1000000) / 1000000,
+                d: data.address?.substring(0, 100) || '',
+                oA: data.originalAddress?.substring(0, 100) || '',
+                pl: data.plot || '',
+                ap: data.apartments || 0,
+                f: data.floors || 0,
+                e: data.entrances || 0,
+                s: addressData[i]?.street?.substring(0, 50) || '',
+                h: addressData[i]?.house || '',
+                b: addressData[i]?.building || '',
+                ci: addressData[i]?.city || '',
+                dU: data.isDuplicate || false
             });
         }
     }
+    
     const state = { c: [center[0], center[1]], z: zoom, p: pointsData };
     const stateStr = JSON.stringify(state);
     const encodedState = btoa(encodeURIComponent(stateStr));
-    const newUrl = `${window.location.origin}${window.location.pathname}?state=${encodedState}`;
-    window.history.pushState({}, '', newUrl);
+    const testUrl = `${window.location.origin}${window.location.pathname}?state=${encodedState}`;
+    
+    if (testUrl.length > 2000) {
+        console.warn('⚠️ URL слишком длинный, сохраняем в localStorage');
+        localStorage.setItem('geomap_state', encodedState);
+        window.history.pushState({}, '', `${window.location.origin}${window.location.pathname}?local=1`);
+    } else {
+        window.history.pushState({}, '', testUrl);
+    }
 }
 
 async function restoreStateFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    const encodedState = urlParams.get('state');
+    let encodedState = urlParams.get('state');
+    const isLocal = urlParams.get('local') === '1';
+    
+    if (isLocal && !encodedState) {
+        encodedState = localStorage.getItem('geomap_state');
+        if (encodedState) {
+            console.log('📦 Загружаем состояние из localStorage');
+            localStorage.removeItem('geomap_state');
+        }
+    }
+    
     if (!encodedState) return;
+    
     isRestoringFromURL = true;
+    
     try {
         const stateStr = decodeURIComponent(atob(encodedState));
         const state = JSON.parse(stateStr);
         if (!state.p || state.p.length === 0) return;
+        
         const points = state.p;
         clearAll();
+        
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             addressData.push({
-                city: point.ci || '', street: point.s || '', house: point.h || '', building: point.b || '',
-                apartments: point.ap || 0, floors: point.f || 0, entrances: point.e || 0,
-                geocodeSuccess: true, geocodeResult: { address: point.d, lat: point.a, lon: point.o }
+                city: point.ci || '',
+                street: point.s || '',
+                house: point.h || '',
+                building: point.b || '',
+                apartments: point.ap || 0,
+                floors: point.f || 0,
+                entrances: point.e || 0,
+                geocodeSuccess: true,
+                geocodeResult: { address: point.d, lat: point.a, lon: point.o }
             });
             markerData.push({
-                id: point.i || i + 1, address: point.d, originalAddress: point.oA, plot: point.pl || null,
-                apartments: point.ap || 0, floors: point.f || 0, entrances: point.e || 0,
-                lat: point.a, lon: point.o, isDuplicate: point.dU || false
+                id: point.i || i + 1,
+                address: point.d,
+                originalAddress: point.oA,
+                plot: point.pl || null,
+                apartments: point.ap || 0,
+                floors: point.f || 0,
+                entrances: point.e || 0,
+                lat: point.a,
+                lon: point.o,
+                isDuplicate: point.dU || false
             });
         }
+        
         await new Promise(resolve => setTimeout(resolve, 200));
+        
         for (let i = 0; i < points.length; i++) {
             const isDup = markerData[i]?.isDuplicate || false;
             addMarker(points[i].a, points[i].o, points[i].d, points[i].oA, i, points[i].i || i + 1, isDup);
         }
+        
         updateAddressList();
         updateStats();
         updateAptSum();
         updatePlotLists();
+        
         if (state.c && state.z) map.setCenter(state.c, state.z);
         else if (markers.length > 0) {
             setTimeout(() => {
@@ -346,12 +390,18 @@ async function restoreStateFromURL() {
                 }
             }, 300);
         }
-    } catch (error) { console.error('Ошибка восстановления:', error); }
-    finally { isRestoringFromURL = false; }
+    } catch (error) {
+        console.error('Ошибка восстановления:', error);
+    } finally {
+        isRestoringFromURL = false;
+    }
 }
 
 async function getMapLink() {
-    if (!mapReady || !map) { alert('Карта ещё не загружена'); return; }
+    if (!mapReady || !map) {
+        alert('Карта ещё не загружена');
+        return;
+    }
     try {
         saveStateToURL();
         const longUrl = window.location.href;
@@ -569,7 +619,6 @@ function assignPlotToSelected() {
     alert(`Назначен участок "${selectedPlot}" для ${assignedCount} адресов`);
 }
 
-// Снять участок с выбранных адресов
 function removePlotFromSelected() {
     if (selectedMarkerIndexes.size === 0) { alert('Сначала выберите адреса'); return; }
     let removedCount = 0;
@@ -753,8 +802,17 @@ async function processExcelFile(file) {
                 let apartments = 0, floors = 0, entrances = 0, plot = '';
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
-                if (building && /[А-Яа-я]$/.test(building) && !/[А-Яа-я]$/.test(house)) {
-                    house = house + building;
+                // Коррекция: если в корпусе буква и/или дробь
+                if (building && /[А-Яа-я]/.test(building) && !/[А-Яа-я]/.test(house)) {
+                    const letter = building.match(/[А-Яа-я]+/);
+                    if (letter) {
+                        house = house + letter[0];
+                        building = building.replace(/[А-Яа-я]+/, '');
+                    }
+                }
+                // Обработка дроби в корпусе
+                if (building && /^\d+\/\d+$/.test(building)) {
+                    house = `${house}/${building}`;
                     building = '';
                 }
                 if (apartmentsCol !== -1 && row[apartmentsCol]) apartments = parseInt(String(row[apartmentsCol]).replace(/[^\d]/g, '')) || 0;
@@ -777,8 +835,8 @@ async function processExcelFile(file) {
                 const result = await geocodeAddressWithCache(addr.street, addr.house, addr.building, addr.city);
                 if (result.success) {
                     const originalAddress = `${addr.street}, ${addr.house}${addr.building ? ` корп.${addr.building}` : ''}`;
-                    addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result });
-                    markerData.push({ id: addr.id, address: result.address, originalAddress: originalAddress, plot: addr.plot || null, apartments: addr.apartments, floors: addr.floors, entrances: addr.entrances, lat: result.lat, lon: result.lon, isDuplicate: false });
+                    addressData.push({ ...addr, geocodeSuccess: true, geocodeResult: result, foundCity: result.city || addr.city });
+                    markerData.push({ id: addr.id, address: result.address, originalAddress: originalAddress, plot: addr.plot || null, apartments: addr.apartments, floors: addr.floors, entrances: addr.entrances, lat: result.lat, lon: result.lon, isDuplicate: false, foundCity: result.city || addr.city });
                 } else {
                     addressData.push({ ...addr, geocodeSuccess: false, error: result.error || 'Не найден' });
                     markerData.push(null);

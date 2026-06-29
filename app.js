@@ -1,4 +1,4 @@
-// app.js - полная версия с поддержкой литер и дробей
+// app.js - Геомап
 
 let map;
 let markers = [];
@@ -9,6 +9,7 @@ let selectedMarkerIndexes = new Set();
 let isRestoringFromURL = false;
 let currentFilterPlot = null;
 let clusterer = null;
+let clusteringEnabled = true; // Кластеризация включена по умолчанию
 
 let rulerActive = false;
 let rulerLine = null;
@@ -18,6 +19,54 @@ let rulerPlacemarks = [];
 let currentFloorsFilter = 0;
 
 const plotColors = new Map();
+
+// Переключение кластеризации
+function toggleClustering() {
+    clusteringEnabled = !clusteringEnabled;
+    const btn = document.getElementById('toggleClusterBtn');
+    
+    if (clusteringEnabled) {
+        // Включаем кластеризацию
+        if (clusterer) {
+            // Сначала убираем все маркеры с карты (которые могли быть добавлены напрямую)
+            for (let i = 0; i < markers.length; i++) {
+                if (markers[i]) {
+                    map.geoObjects.remove(markers[i]);
+                }
+            }
+            // Добавляем все видимые маркеры в кластеризатор
+            clusterer.removeAll();
+            for (let i = 0; i < markers.length; i++) {
+                if (markers[i] && shouldShowMarker(i)) {
+                    clusterer.add(markers[i]);
+                }
+            }
+        }
+        btn.innerHTML = '🔵';
+        btn.style.background = '#4CAF50';
+        btn.title = 'Отключить кластеризацию';
+        console.log('Кластеризация ВКЛЮЧЕНА');
+    } else {
+        // Отключаем кластеризацию
+        if (clusterer) {
+            // Переносим все маркеры из кластеризатора на карту
+            const allMarkers = clusterer.getObjects();
+            clusterer.removeAll();
+            // Добавляем маркеры напрямую на карту (только видимые)
+            for (let i = 0; i < allMarkers.length; i++) {
+                const marker = allMarkers[i];
+                const markerIndex = marker.properties.get('markerIndex');
+                if (markerIndex !== undefined && shouldShowMarker(markerIndex)) {
+                    map.geoObjects.add(marker);
+                }
+            }
+        }
+        btn.innerHTML = '⚪';
+        btn.style.background = '#f44336';
+        btn.title = 'Включить кластеризацию';
+        console.log('Кластеризация ОТКЛЮЧЕНА');
+    }
+}
 
 function getColorForPlot(plotName) {
     if (!plotName || plotName === '') return null;
@@ -118,24 +167,52 @@ function applyFloorsFilter() {
     const filterInput = document.getElementById('floorsFilter');
     currentFloorsFilter = parseInt(filterInput.value) || 0;
     
-    for (let i = 0; i < markers.length; i++) {
-        if (markers[i]) {
-            markers[i].options.set('visible', shouldShowMarker(i));
+    if (clusteringEnabled && clusterer) {
+        // Кластеризация включена — перестраиваем кластеризатор
+        clusterer.removeAll();
+        for (let i = 0; i < markers.length; i++) {
+            if (markers[i]) {
+                const visible = shouldShowMarker(i);
+                markers[i].options.set('visible', visible);
+                if (visible) {
+                    clusterer.add(markers[i]);
+                }
+            }
+        }
+        clusterer.reload();
+    } else {
+        // Кластеризация отключена — просто управляем видимостью
+        for (let i = 0; i < markers.length; i++) {
+            if (markers[i]) {
+                markers[i].options.set('visible', shouldShowMarker(i));
+            }
         }
     }
-    if (clusterer) clusterer.reload();
+    
     updateAddressList();
 }
 
 function resetFloorsFilter() {
     document.getElementById('floorsFilter').value = 0;
     currentFloorsFilter = 0;
-    for (let i = 0; i < markers.length; i++) {
-        if (markers[i]) {
-            markers[i].options.set('visible', shouldShowMarker(i));
+    
+    if (clusteringEnabled && clusterer) {
+        clusterer.removeAll();
+        for (let i = 0; i < markers.length; i++) {
+            if (markers[i]) {
+                markers[i].options.set('visible', true);
+                clusterer.add(markers[i]);
+            }
+        }
+        clusterer.reload();
+    } else {
+        for (let i = 0; i < markers.length; i++) {
+            if (markers[i]) {
+                markers[i].options.set('visible', true);
+            }
         }
     }
-    if (clusterer) clusterer.reload();
+    
     updateAddressList();
 }
 
@@ -517,7 +594,14 @@ function addMarker(lat, lon, address, originalAddress, index, number, isDuplicat
     });
     placemark.properties.set('markerIndex', index);
     placemark.events.add('click', () => toggleMarkerSelection(index));
-    clusterer.add(placemark);
+    
+    // Добавляем маркер в зависимости от режима кластеризации
+    if (clusteringEnabled) {
+        clusterer.add(placemark);
+    } else {
+        map.geoObjects.add(placemark);
+    }
+    
     markers.push(placemark);
     if (!isRestoringFromURL) saveStateToURL();
     return placemark;
@@ -802,35 +886,21 @@ async function processExcelFile(file) {
                 let building = buildingCol !== -1 && row[buildingCol] ? String(row[buildingCol]).trim() : '';
                 let house = String(row[houseCol] || '').trim();
                 
-                // ЛОГИКА ОБРАБОТКИ КОРПУСА:
-                // 1. Если корпус — просто цифра (1, 2, 3...) → превращаем в литера (4к1)
-                // 2. Если корпус — буква или буква с цифрой → присоединяем (15а)
-                // 3. Если в доме уже есть слеш (дробь) — не трогаем
-                // 4. Если корпус содержит слеш — оставляем как корпус для дроби
-                
                 if (building && building !== '') {
-                    // Если это просто цифра (литера)
                     if (/^\d+$/.test(building)) {
                         house = house + 'к' + building;
                         building = '';
-                    }
-                    // Если это буква или буква с цифрой
-                    else if (/^[а-яА-ЯёЁ]+$|^[а-яА-ЯёЁ]+\d+$|^\d+[а-яА-ЯёЁ]+$/.test(building)) {
+                    } else if (/^[а-яА-ЯёЁ]+$|^[а-яА-ЯёЁ]+\d+$|^\d+[а-яА-ЯёЁ]+$/.test(building)) {
                         house = house + building;
                         building = '';
-                    }
-                    // Если это дробь (содержит /) — оставляем как есть
-                    else if (building.includes('/')) {
-                        // Дробь остаётся в building, не объединяем
-                    }
-                    // Остальное — просто присоединяем
-                    else {
+                    } else if (building.includes('/')) {
+                        // Дробь остаётся в building
+                    } else {
                         house = house + building;
                         building = '';
                     }
                 }
                 
-                // Если в доме уже есть слеш — это дробь, корпус должен быть пустым
                 if (house.includes('/')) {
                     building = '';
                 }
@@ -935,6 +1005,9 @@ if (onlyWithFloorsCheckbox) {
         applyFloorsFilter();
     };
 }
+
+// Назначаем обработчик кнопки переключения кластеризации
+document.getElementById('toggleClusterBtn').onclick = toggleClustering;
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();

@@ -43,6 +43,8 @@
         }
         .map-controls button:hover { background: #e0e0e0; }
         .map-controls button.active { background: #2196F3; color: white; }
+        .map-controls button.cluster-on { background: #4CAF50; color: white; }
+        .map-controls button.cluster-off { background: #f44336; color: white; }
         
         .filter-panel {
             position: absolute;
@@ -218,6 +220,7 @@
             
             <div class="map-controls">
                 <button id="rulerBtn" title="Измерить расстояние">📏</button>
+                <button id="toggleClusterBtn" title="Включить/выключить кластеризацию" class="cluster-on">🔵</button>
             </div>
             
             <div class="filter-panel">
